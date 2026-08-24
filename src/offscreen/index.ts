@@ -1,7 +1,7 @@
 import { isXrayMessage } from '@/shared/messages';
 import { IdbContentStore } from './store';
 import { SessionState } from './sessionState';
-import { buildBundleFiles, zipBundle, bundleFilename } from './exporter';
+import { buildBundleFiles, zipBundle, bundleFilename } from '@sudobility/xray_lib';
 
 const store = new IdbContentStore('xray-capture', indexedDB);
 

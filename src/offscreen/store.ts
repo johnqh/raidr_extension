@@ -1,14 +1,9 @@
+import type { ContentStore } from '@sudobility/xray_lib';
 import { sha256Hex } from './hash';
 
 const STORE_NAME = 'content';
 
-export interface ContentStore {
-  put(bytes: Uint8Array): Promise<string>;
-  get(hash: string): Promise<Uint8Array | null>;
-  has(hash: string): Promise<boolean>;
-  count(): Promise<number>;
-  totalBytes(): Promise<number>;
-}
+export type { ContentStore };
 
 interface ContentRow {
   hash: string;

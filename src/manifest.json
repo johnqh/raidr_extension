@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "xray",
+  "version": "0.0.1",
+  "description": "Capture a web app's traffic and runtime for reconstruction",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "debugger",
+    "offscreen",
+    "storage",
+    "downloads",
+    "tabs",
+    "sidePanel"
+  ],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "src/sidepanel/index.html"
+  },
+  "action": {
+    "default_title": "xray"
+  },
+  "content_security_policy": {
+    "extension_pages": "default-src 'self'; script-src 'self'; object-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'"
+  }
+}

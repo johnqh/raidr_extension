@@ -1,6 +1,10 @@
 import { isXrayMessage } from '@/shared/messages';
+import { LiveChromeAdapter } from '@/adapters/ChromeAdapter';
+import { CdpSession } from './cdpSession';
 
 const OFFSCREEN_PATH = 'src/offscreen/index.html';
+
+let session: CdpSession | null = null;
 
 async function ensureOffscreen(): Promise<void> {
   const existing = await chrome.runtime.getContexts({
@@ -15,8 +19,30 @@ async function ensureOffscreen(): Promise<void> {
   });
 }
 
+async function startSession(tabId: number): Promise<void> {
+  await ensureOffscreen();
+  session = new CdpSession(new LiveChromeAdapter(), {
+    onRequest: async (assembled, body) => {
+      await chrome.runtime.sendMessage({
+        kind: 'capture/request',
+        row: { assembled, body },
+      });
+    },
+    onGap: async (gap) => {
+      await chrome.runtime.sendMessage({ kind: 'capture/gap', gap });
+    },
+    onRuntime: async (snapshot) => {
+      await chrome.runtime.sendMessage({ kind: 'capture/runtime', snapshot });
+    },
+  });
+  await session.start(tabId);
+}
+
 chrome.runtime.onMessage.addListener((message) => {
   if (!isXrayMessage(message)) return;
+
+  if (message.kind === 'session/start') void startSession(message.tabId);
+  if (message.kind === 'session/stop') void session?.stop();
 
   if (message.kind === 'export/ready') {
     void chrome.downloads.download({

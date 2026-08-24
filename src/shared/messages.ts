@@ -16,7 +16,9 @@ export type XrayMessage =
   | { kind: 'capture/gap'; gap: Gap }
   | { kind: 'export/start' }
   | { kind: 'export/ready'; blobUrl: string; filename: string }
-  | { kind: 'export/manifest'; manifest: XrayManifest };
+  | { kind: 'export/manifest'; manifest: XrayManifest }
+  | { kind: 'session/coverage'; report: import('@sudobility/xray_lib').CoverageReport }
+  | { kind: 'capture/runtime'; snapshot: import('@/background/cdpSession').RuntimeSnapshot };
 
 const KINDS: ReadonlySet<string> = new Set([
   'session/start',
@@ -28,6 +30,8 @@ const KINDS: ReadonlySet<string> = new Set([
   'export/start',
   'export/ready',
   'export/manifest',
+  'session/coverage',
+  'capture/runtime',
 ]);
 
 export function isXrayMessage(value: unknown): value is XrayMessage {

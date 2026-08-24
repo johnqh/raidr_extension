@@ -56,6 +56,7 @@ async function fixtureInput() {
       redaction: [
         { placeholder: '<JWT:a1b2>', kind: 'jwt' as const, occurrences: 4 },
       ],
+      sourceMaps: {} as Record<string, string>,
       runtime: {
         framework: { framework: 'react' },
         routes: [],
@@ -121,4 +122,29 @@ test('filename encodes host and start time', () => {
   expect(bundleFilename('https://app.example.com', '2026-08-24T10:05:00.000Z')).toBe(
     'xray-app.example.com-20260824-1005.zip'
   );
+});
+
+test('writes discovered source maps and an index mapping scripts to them', async () => {
+  const { store, input } = await fixtureInput();
+  const mapText = JSON.stringify({
+    version: 3,
+    sources: ['src/App.tsx'],
+    sourcesContent: ['export const App = () => null;'],
+    mappings: 'AAAA',
+  });
+  const mapHash = await store.put(encoder.encode(mapText));
+  input.sourceMaps = { 'https://example.com/assets/app.js': mapHash };
+
+  const files = await buildBundleFiles(input);
+  expect(Object.keys(files)).toContain(`sourcemaps/${mapHash}.map`);
+  expect(strFromU8(files[`sourcemaps/${mapHash}.map`]!)).toBe(mapText);
+
+  const index = JSON.parse(strFromU8(files['sourcemaps/index.json']!));
+  expect(index['https://example.com/assets/app.js']).toBe(mapHash);
+});
+
+test('writes an empty source map index when none were discovered', async () => {
+  const { input } = await fixtureInput();
+  const files = await buildBundleFiles(input);
+  expect(JSON.parse(strFromU8(files['sourcemaps/index.json']!))).toEqual({});
 });

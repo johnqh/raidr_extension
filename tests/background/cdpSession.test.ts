@@ -6,7 +6,11 @@ import type { Gap } from '@sudobility/xray_lib';
 function collectingSink() {
   const requests: Array<{ url: string; body: string | null }> = [];
   const gaps: Gap[] = [];
+  const sourceMaps: Array<{ scriptUrl: string; text: string }> = [];
   const sink: CaptureSink = {
+    onSourceMap: async (scriptUrl, _mapUrl, text) => {
+      sourceMaps.push({ scriptUrl, text });
+    },
     onRequest: async (assembled, body) => {
       requests.push({ url: assembled.url, body });
     },
@@ -15,7 +19,7 @@ function collectingSink() {
     },
     onRuntime: async () => {},
   };
-  return { sink, requests, gaps };
+  return { sink, requests, gaps, sourceMaps };
 }
 
 test('enables the CDP domains capture depends on', async () => {
@@ -175,4 +179,56 @@ test('detaching stops the debugger cleanly', async () => {
 
   await session.stop();
   expect(fake.attached).not.toContain(1);
+});
+
+test('scriptParsed fetches and keeps a source map with sourcesContent', async () => {
+  const mapText = JSON.stringify({
+    version: 3,
+    sources: ['src/App.tsx'],
+    sourcesContent: ['export const App = () => null;'],
+    mappings: 'AAAA',
+  });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response(mapText, { status: 200 })) as unknown as typeof fetch;
+
+  try {
+    const fake = new FakeChromeAdapter();
+    const { sink, sourceMaps } = collectingSink();
+    await new CdpSession(fake, sink).start(1);
+
+    fake.emit(1, 'Debugger.scriptParsed', {
+      url: 'https://x.com/assets/app-a1b2.js',
+      sourceMapURL: 'app-a1b2.js.map',
+    });
+    await Bun.sleep(0);
+
+    expect(sourceMaps).toHaveLength(1);
+    expect(sourceMaps[0]!.scriptUrl).toBe('https://x.com/assets/app-a1b2.js');
+    expect(JSON.parse(sourceMaps[0]!.text).sourcesContent[0]).toContain('App');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('scriptParsed discards a 404 HTML page served for a speculative .map', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response("<!doctype html><html>404</html>", { status: 200 })) as unknown as typeof fetch;
+
+  try {
+    const fake = new FakeChromeAdapter();
+    const { sink, sourceMaps } = collectingSink();
+    await new CdpSession(fake, sink).start(1);
+
+    fake.emit(1, 'Debugger.scriptParsed', {
+      url: 'https://x.com/assets/app-a1b2.js',
+      sourceMapURL: null,
+    });
+    await Bun.sleep(0);
+
+    expect(sourceMaps).toHaveLength(0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

@@ -2,6 +2,7 @@ import type { Gap, StackFingerprint } from '@sudobility/xray_lib';
 import type { ChromeAdapter } from '@/adapters/ChromeAdapter';
 import { RequestAssembler, type AssembledRequest } from './requestAssembler';
 import { PROBE_SOURCES } from '@/introspect/probes';
+import { candidateMapUrls, isUsefulSourceMap } from './sourceMaps';
 
 const MAX_RESOURCE_BUFFER = 100 * 1024 * 1024;
 const MAX_TOTAL_BUFFER = 500 * 1024 * 1024;
@@ -19,6 +20,7 @@ export interface CaptureSink {
   ): Promise<void>;
   onGap(gap: Gap): Promise<void>;
   onRuntime(snapshot: RuntimeSnapshot): Promise<void>;
+  onSourceMap(scriptUrl: string, mapUrl: string, text: string): Promise<void>;
 }
 
 function decodeBody(result: unknown): string | null {
@@ -35,6 +37,7 @@ export class CdpSession {
   private assembler = new RequestAssembler();
   private tabId: number | null = null;
   private navigationCounter = 0;
+  private attemptedMaps = new Set<string>();
 
   constructor(
     private readonly adapter: ChromeAdapter,
@@ -92,6 +95,13 @@ export class CdpSession {
         return;
       }
 
+      case 'Debugger.scriptParsed':
+        await this.discoverSourceMap(
+          String(params.url ?? ''),
+          typeof params.sourceMapURL === 'string' ? params.sourceMapURL : null
+        );
+        return;
+
       case 'Page.loadEventFired':
       case 'Page.navigatedWithinDocument':
         this.navigationCounter += 1;
@@ -130,6 +140,27 @@ export class CdpSession {
     }
 
     await this.sink.onRequest(assembled, body);
+  }
+
+  private async discoverSourceMap(
+    scriptUrl: string,
+    declaredMapUrl: string | null
+  ): Promise<void> {
+    for (const mapUrl of candidateMapUrls(scriptUrl, declaredMapUrl)) {
+      if (this.attemptedMaps.has(mapUrl)) continue;
+      this.attemptedMaps.add(mapUrl);
+      try {
+        const response = await fetch(mapUrl, { credentials: 'include' });
+        if (!response.ok) continue;
+        const text = await response.text();
+        if (!isUsefulSourceMap(text)) continue;
+        await this.sink.onSourceMap(scriptUrl, mapUrl, text);
+        return;
+      } catch {
+        // A missing or blocked map is the common case, not an error worth
+        // recording as a gap: the bundle is still complete without it.
+      }
+    }
   }
 
   private async introspect(): Promise<void> {

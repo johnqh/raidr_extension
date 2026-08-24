@@ -2,6 +2,7 @@ import { zip } from 'fflate';
 import {
   contentPath,
   extensionForMime,
+  sourcemapPath,
   toJsonl,
   type CapturedFrame,
   type CapturedRequest,
@@ -26,6 +27,8 @@ export interface BundleInput {
   frames: CapturedFrame[];
   gaps: Gap[];
   redaction: RedactionEntry[];
+  /** script URL → content hash of its source map */
+  sourceMaps: Record<string, string>;
   runtime: RuntimeArtifacts;
 }
 
@@ -71,6 +74,14 @@ export async function buildBundleFiles(
     const bytes = await input.store.get(frame.payloadHash);
     if (bytes) files[path] = bytes;
   }
+
+  for (const hash of Object.values(input.sourceMaps)) {
+    const path = sourcemapPath(hash);
+    if (files[path]) continue;
+    const bytes = await input.store.get(hash);
+    if (bytes) files[path] = bytes;
+  }
+  files['sourcemaps/index.json'] = json(input.sourceMaps);
 
   return files;
 }

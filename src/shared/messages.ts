@@ -20,7 +20,8 @@ export type XrayMessage =
   | { kind: 'session/coverage'; report: import('@sudobility/xray_lib').CoverageReport }
   | { kind: 'capture/runtime'; snapshot: import('@/background/cdpSession').RuntimeSnapshot }
   | { kind: 'session/begin'; origin: string }
-  | { kind: 'session/redaction'; entries: import('@sudobility/xray_lib').RedactionEntry[] };
+  | { kind: 'session/redaction'; entries: import('@sudobility/xray_lib').RedactionEntry[] }
+  | { kind: 'capture/sourcemap'; scriptUrl: string; text: string };
 
 const KINDS: ReadonlySet<string> = new Set([
   'session/start',
@@ -36,6 +37,7 @@ const KINDS: ReadonlySet<string> = new Set([
   'capture/runtime',
   'session/begin',
   'session/redaction',
+  'capture/sourcemap',
 ]);
 
 export function isXrayMessage(value: unknown): value is XrayMessage {

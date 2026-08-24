@@ -24,6 +24,7 @@ export class SessionState {
   private knownRoutes = new Set<string>();
   private visitedRoutes = new Set<string>();
   private framework: StackFingerprint | null = null;
+  private sourceMaps = new Map<string, string>();
 
   constructor(
     private readonly store: ContentStore,
@@ -56,6 +57,15 @@ export class SessionState {
       this.framework = snapshot.framework;
       if (this.currentManifest) this.currentManifest.stack = snapshot.framework;
     }
+  }
+
+  async ingestSourceMap(scriptUrl: string, text: string): Promise<void> {
+    const hash = await this.store.put(new TextEncoder().encode(text));
+    this.sourceMaps.set(scriptUrl, hash);
+  }
+
+  sourceMapHashes(): Record<string, string> {
+    return Object.fromEntries(this.sourceMaps);
   }
 
   markVisited(path: string): void {
@@ -129,6 +139,7 @@ export class SessionState {
       frames: this.frames,
       gaps: this.gaps,
       redaction: this.redaction(),
+      sourceMaps: this.sourceMapHashes(),
       runtime: {
         framework: this.framework,
         routes: Array.from(this.knownRoutes),

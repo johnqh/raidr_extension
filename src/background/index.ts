@@ -34,6 +34,13 @@ async function startSession(tabId: number): Promise<void> {
     onRuntime: async (snapshot) => {
       await chrome.runtime.sendMessage({ kind: 'capture/runtime', snapshot });
     },
+    onSourceMap: async (scriptUrl, _mapUrl, text) => {
+      await chrome.runtime.sendMessage({
+        kind: 'capture/sourcemap',
+        scriptUrl,
+        text,
+      });
+    },
   });
   await session.start(tabId);
 }

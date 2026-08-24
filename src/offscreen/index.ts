@@ -45,6 +45,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       broadcast();
       return;
 
+    case 'capture/sourcemap':
+      void state.ingestSourceMap(message.scriptUrl, message.text).then(broadcast);
+      return;
+
     case 'capture/runtime':
       state.ingestRuntime(message.snapshot);
       broadcast();

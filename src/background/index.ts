@@ -41,7 +41,15 @@ async function startSession(tabId: number): Promise<void> {
 chrome.runtime.onMessage.addListener((message) => {
   if (!isXrayMessage(message)) return;
 
-  if (message.kind === 'session/start') void startSession(message.tabId);
+  if (message.kind === 'session/start') {
+    void (async () => {
+      const tab = await chrome.tabs.get(message.tabId);
+      const origin = tab.url ? new URL(tab.url).origin : 'https://unknown.invalid';
+      await ensureOffscreen();
+      await chrome.runtime.sendMessage({ kind: 'session/begin', origin });
+      await startSession(message.tabId);
+    })();
+  }
   if (message.kind === 'session/stop') void session?.stop();
 
   if (message.kind === 'export/ready') {

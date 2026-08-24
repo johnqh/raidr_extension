@@ -1,53 +1,79 @@
 import { isXrayMessage } from '@/shared/messages';
 import { IdbContentStore } from './store';
+import { SessionState } from './sessionState';
 import { buildBundleFiles, zipBundle, bundleFilename } from './exporter';
-import type { BundleInput } from './exporter';
 
 const store = new IdbContentStore('xray-capture', indexedDB);
 
-// Session state lives here, not in the service worker: MV3 terminates an idle
-// worker after ~30s, which would discard the buffer mid-capture.
-const session = {
-  manifest: null as BundleInput['manifest'] | null,
-  requests: [] as BundleInput['requests'],
-  frames: [] as BundleInput['frames'],
-  gaps: [] as BundleInput['gaps'],
-  redaction: [] as BundleInput['redaction'],
-  runtime: {
-    framework: null,
-    routes: [],
-    stores: [],
-    chunks: { known: [], loaded: [] },
-    coverage: {},
-  } as BundleInput['runtime'],
-};
+// The salt is generated per session and deliberately never persisted or
+// exported: it is what keeps short pseudonym hashes from being brute-forced
+// back to the original credentials.
+const salt = crypto.randomUUID();
+const state = new SessionState(store, salt);
+
+function broadcast(): void {
+  void chrome.runtime.sendMessage({
+    kind: 'session/coverage',
+    report: state.coverage(),
+  });
+  void chrome.runtime.sendMessage({
+    kind: 'session/redaction',
+    entries: state.redaction(),
+  });
+}
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (!isXrayMessage(message)) return;
 
-  if (message.kind === 'export/start') {
-    void (async () => {
-      if (!session.manifest) {
-        sendResponse({ ok: false, error: 'no active session' });
-        return;
-      }
-      const files = await buildBundleFiles({ store, ...session, manifest: session.manifest });
-      const zipped = await zipBundle(files);
-      // Re-wrap for the same ArrayBufferLike/BufferSource reason as sha256Hex.
-      const blobUrl = URL.createObjectURL(
-        new Blob([new Uint8Array(zipped)], { type: 'application/zip' })
-      );
-      sendResponse({
-        ok: true,
-        blobUrl,
-        filename: bundleFilename(
-          session.manifest.origin,
-          session.manifest.startedAt
-        ),
-      });
-    })();
-    return true; // keep the message channel open for the async response
+  switch (message.kind) {
+    case 'session/begin':
+      state.begin(message.origin, new Date().toISOString(), crypto.randomUUID());
+      broadcast();
+      return;
+
+    case 'capture/request': {
+      const { assembled, body } = message.row as {
+        assembled: Parameters<SessionState['ingestRequest']>[0];
+        body: string | null;
+      };
+      void state.ingestRequest(assembled, body).then(broadcast);
+      return;
+    }
+
+    case 'capture/gap':
+      state.ingestGap(message.gap);
+      broadcast();
+      return;
+
+    case 'capture/runtime':
+      state.ingestRuntime(message.snapshot);
+      broadcast();
+      return;
+
+    case 'export/start':
+      void (async () => {
+        const manifest = state.manifest();
+        if (!manifest) {
+          sendResponse({ ok: false, error: 'no active session' });
+          return;
+        }
+        manifest.endedAt = new Date().toISOString();
+        const files = await buildBundleFiles(state.bundleInput());
+        const zipped = await zipBundle(files);
+        // Re-wrap for the same ArrayBufferLike/BufferSource reason as sha256Hex.
+        const blobUrl = URL.createObjectURL(
+          new Blob([new Uint8Array(zipped)], { type: 'application/zip' })
+        );
+        void chrome.runtime.sendMessage({
+          kind: 'export/ready',
+          blobUrl,
+          filename: bundleFilename(manifest.origin, manifest.startedAt),
+        });
+        sendResponse({ ok: true });
+      })();
+      return true; // keep the message channel open for the async response
+
+    default:
+      return;
   }
 });
-
-export { session, store };

@@ -14,13 +14,14 @@ const EMPTY_REPORT: CoverageReport = {
 export function SidePanel() {
   const [capturing, setCapturing] = useState(false);
   const [report, setReport] = useState<CoverageReport>(EMPTY_REPORT);
-  const [entries] = useState<RedactionEntry[]>([]);
+  const [entries, setEntries] = useState<RedactionEntry[]>([]);
   const [acknowledged, setAcknowledged] = useState(false);
 
   useEffect(() => {
     const listener = (message: unknown) => {
       if (!isXrayMessage(message)) return;
       if (message.kind === 'session/coverage') setReport(message.report);
+      if (message.kind === 'session/redaction') setEntries(message.entries);
     };
     chrome.runtime.onMessage.addListener(listener);
     return () => chrome.runtime.onMessage.removeListener(listener);

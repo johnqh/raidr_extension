@@ -35,6 +35,18 @@ function asHeaders(value: unknown): Record<string, string> {
   return out;
 }
 
+/**
+ * Only the page's own traffic belongs in a bundle.
+ *
+ * A tab carries requests from every other installed extension too, and those
+ * were being recorded: a real capture of one site contained two unrelated
+ * `chrome-extension://` hosts. That is noise in the analysis and someone else's
+ * data in an artifact the operator may share.
+ */
+function isCapturableScheme(url: string): boolean {
+  return /^https?:\/\//i.test(url);
+}
+
 export class RequestAssembler {
   private pending = new Map<string, Pending>();
   private navigationId: string | null = null;
@@ -51,6 +63,7 @@ export class RequestAssembler {
     const requestId = String(params.requestId ?? '');
     if (!requestId) return;
     const request = asRecord(params.request);
+    if (!isCapturableScheme(String(request.url ?? ''))) return;
     const wallTime = Number(params.wallTime ?? 0);
 
     this.pending.set(requestId, {

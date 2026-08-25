@@ -5,6 +5,8 @@ export interface SessionStats {
   bodies: number;
   bytes: number;
   gaps: number;
+  /** Share of the origin's storage quota in use, when the browser reports it. */
+  quotaPct: number | null;
 }
 
 export type XrayMessage =
@@ -22,7 +24,11 @@ export type XrayMessage =
   | { kind: 'session/begin'; origin: string }
   | { kind: 'session/redaction'; entries: import('@sudobility/xray_lib').RedactionEntry[] }
   | { kind: 'capture/sourcemap'; scriptUrl: string; text: string }
-  | { kind: 'capture/navigation'; navigation: import('@/background/cdpSession').NavigationRecord };
+  | { kind: 'capture/navigation'; navigation: import('@/background/cdpSession').NavigationRecord }
+  | { kind: 'session/started'; tabId: number }
+  | { kind: 'session/stopped' }
+  | { kind: 'session/detached'; tabId: number; reason: string }
+  | { kind: 'session/error'; detail: string };
 
 const KINDS: ReadonlySet<string> = new Set([
   'session/start',
@@ -40,6 +46,10 @@ const KINDS: ReadonlySet<string> = new Set([
   'session/redaction',
   'capture/sourcemap',
   'capture/navigation',
+  'session/started',
+  'session/stopped',
+  'session/detached',
+  'session/error',
 ]);
 
 export function isXrayMessage(value: unknown): value is XrayMessage {

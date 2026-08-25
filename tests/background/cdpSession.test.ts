@@ -1,6 +1,13 @@
 import { expect, test } from 'bun:test';
 import { FakeChromeAdapter } from '../support/FakeChromeAdapter';
 import { CdpSession, type CaptureSink } from '../../src/background/cdpSession';
+import type { FakeChromeAdapter as Fake } from '../support/FakeChromeAdapter';
+
+/** The service worker subscribes at top level and forwards; tests do the same. */
+function wire(fake: Fake, session: CdpSession): CdpSession {
+  fake.onEvent((tabId, method, params) => void session.handleEvent(tabId, method, params));
+  return session;
+}
 import type { Gap } from '@sudobility/xray_lib';
 
 function collectingSink() {
@@ -29,7 +36,7 @@ function collectingSink() {
 test('enables the CDP domains capture depends on', async () => {
   const fake = new FakeChromeAdapter();
   const { sink } = collectingSink();
-  await new CdpSession(fake, sink).start(1);
+  await wire(fake, new CdpSession(fake, sink)).start(1);
 
   const methods = fake.commands.map((c) => c.method);
   expect(methods).toContain('Network.enable');
@@ -41,7 +48,7 @@ test('enables the CDP domains capture depends on', async () => {
 test('raises the network buffer so large bundles are not evicted', async () => {
   const fake = new FakeChromeAdapter();
   const { sink } = collectingSink();
-  await new CdpSession(fake, sink).start(1);
+  await wire(fake, new CdpSession(fake, sink)).start(1);
 
   const enable = fake.commands.find((c) => c.method === 'Network.enable');
   expect(Number(enable!.params.maxResourceBufferSize)).toBeGreaterThanOrEqual(
@@ -59,7 +66,7 @@ test('fetches the response body only once loading has finished', async () => {
     base64Encoded: false,
   }));
   const { sink, requests } = collectingSink();
-  const session = new CdpSession(fake, sink);
+  const session = wire(fake, new CdpSession(fake, sink));
   await session.start(1);
 
   fake.emit(1, 'Network.requestWillBeSent', {
@@ -90,7 +97,7 @@ test('decodes base64 response bodies', async () => {
     base64Encoded: true,
   }));
   const { sink, requests } = collectingSink();
-  await new CdpSession(fake, sink).start(1);
+  await wire(fake, new CdpSession(fake, sink)).start(1);
 
   fake.emit(1, 'Network.requestWillBeSent', {
     requestId: 'r1',
@@ -114,7 +121,7 @@ test('an evicted body becomes a gap rather than a dropped request', async () => 
     throw new Error('No resource with given identifier found');
   });
   const { sink, gaps, requests } = collectingSink();
-  await new CdpSession(fake, sink).start(1);
+  await wire(fake, new CdpSession(fake, sink)).start(1);
 
   fake.emit(1, 'Network.requestWillBeSent', {
     requestId: 'r1',
@@ -140,7 +147,7 @@ test('an evicted body becomes a gap rather than a dropped request', async () => 
 test('a failed load is recorded as a gap', async () => {
   const fake = new FakeChromeAdapter();
   const { sink, gaps } = collectingSink();
-  await new CdpSession(fake, sink).start(1);
+  await wire(fake, new CdpSession(fake, sink)).start(1);
 
   fake.emit(1, 'Network.requestWillBeSent', {
     requestId: 'r1',
@@ -164,7 +171,7 @@ test('runs the introspection probes after a navigation completes', async () => {
     result: { value: [] },
   }));
   const { sink } = collectingSink();
-  await new CdpSession(fake, sink).start(1);
+  await wire(fake, new CdpSession(fake, sink)).start(1);
 
   fake.emit(1, 'Page.loadEventFired', {});
   await Bun.sleep(0);
@@ -177,7 +184,7 @@ test('runs the introspection probes after a navigation completes', async () => {
 test('detaching stops the debugger cleanly', async () => {
   const fake = new FakeChromeAdapter();
   const { sink } = collectingSink();
-  const session = new CdpSession(fake, sink);
+  const session = wire(fake, new CdpSession(fake, sink));
   await session.start(1);
   expect(fake.attached).toContain(1);
 
@@ -199,7 +206,7 @@ test('scriptParsed fetches and keeps a source map with sourcesContent', async ()
   try {
     const fake = new FakeChromeAdapter();
     const { sink, sourceMaps } = collectingSink();
-    await new CdpSession(fake, sink).start(1);
+    await wire(fake, new CdpSession(fake, sink)).start(1);
 
     fake.emit(1, 'Debugger.scriptParsed', {
       url: 'https://x.com/assets/app-a1b2.js',
@@ -223,7 +230,7 @@ test('scriptParsed discards a 404 HTML page served for a speculative .map', asyn
   try {
     const fake = new FakeChromeAdapter();
     const { sink, sourceMaps } = collectingSink();
-    await new CdpSession(fake, sink).start(1);
+    await wire(fake, new CdpSession(fake, sink)).start(1);
 
     fake.emit(1, 'Debugger.scriptParsed', {
       url: 'https://x.com/assets/app-a1b2.js',
@@ -243,7 +250,7 @@ test('a 204 response is not recorded as a gap — it has no body by definition',
     throw new Error('No resource with given identifier found');
   });
   const { sink, gaps, requests } = collectingSink();
-  await new CdpSession(fake, sink).start(1);
+  await wire(fake, new CdpSession(fake, sink)).start(1);
 
   fake.emit(1, 'Network.requestWillBeSent', {
     requestId: 'r1',
@@ -268,7 +275,7 @@ test('a 204 response is not recorded as a gap — it has no body by definition',
 test('a 304 response is likewise not a gap', async () => {
   const fake = new FakeChromeAdapter();
   const { sink, gaps } = collectingSink();
-  await new CdpSession(fake, sink).start(1);
+  await wire(fake, new CdpSession(fake, sink)).start(1);
 
   fake.emit(1, 'Network.requestWillBeSent', {
     requestId: 'r1',
@@ -284,4 +291,86 @@ test('a 304 response is likewise not a gap', async () => {
   await Bun.sleep(0);
 
   expect(gaps).toHaveLength(0);
+});
+
+test('start does not subscribe to events itself', async () => {
+  // Regression: subscribing from inside start() means the listener is
+  // registered from a message handler, and MV3 drops it when the worker is
+  // recycled — capture then dies silently. The worker owns the subscription.
+  const fake = new FakeChromeAdapter();
+  const { sink, requests } = collectingSink();
+  const session = new CdpSession(fake, sink); // deliberately not wired
+
+  await session.start(1);
+  fake.emit(1, 'Network.requestWillBeSent', {
+    requestId: 'r1',
+    wallTime: 1756029600,
+    request: { url: 'https://x.com/api/me', method: 'GET', headers: {} },
+    type: 'XHR',
+  });
+  await Bun.sleep(0);
+
+  expect(requests).toHaveLength(0);
+});
+
+test('handleEvent ignores events from other tabs', async () => {
+  const fake = new FakeChromeAdapter();
+  fake.respondWith('Network.getResponseBody', () => ({
+    body: '{}',
+    base64Encoded: false,
+  }));
+  const { sink, requests } = collectingSink();
+  const session = new CdpSession(fake, sink);
+  await session.start(1);
+
+  await session.handleEvent(99, 'Network.requestWillBeSent', {
+    requestId: 'r1',
+    wallTime: 1756029600,
+    request: { url: 'https://x.com/api/me', method: 'GET', headers: {} },
+    type: 'XHR',
+  });
+  await session.handleEvent(99, 'Network.loadingFinished', { requestId: 'r1' });
+
+  expect(requests).toHaveLength(0);
+});
+
+test('resuming tolerates the attachment that outlived the worker', async () => {
+  const fake = new FakeChromeAdapter();
+  const { sink } = collectingSink();
+  const session = new CdpSession(fake, sink);
+
+  // Chrome throws when re-attaching to a target this extension already holds.
+  const failing = {
+    ...fake,
+    attach: async () => {
+      throw new Error('Another debugger is already attached');
+    },
+    sendCommand: fake.sendCommand.bind(fake),
+    onEvent: fake.onEvent.bind(fake),
+    onDetach: fake.onDetach.bind(fake),
+    detach: fake.detach.bind(fake),
+  };
+
+  await session.start(1, { resume: true });
+  await failing.sendCommand(1, 'noop');
+
+  // Domains must still be enabled, or a resumed session records nothing.
+  const methods = fake.commands.map((c) => c.method);
+  expect(methods).toContain('Network.enable');
+  expect(methods).toContain('Page.enable');
+});
+
+test('a resumed session keeps counting navigations rather than restarting at 1', async () => {
+  const fake = new FakeChromeAdapter();
+  fake.respondWith('Runtime.evaluate', () => ({ result: { value: '' } }));
+  const { sink, navigations } = collectingSink();
+  const session = wire(fake, new CdpSession(fake, sink));
+
+  session.setNavigationCounter(7);
+  await session.start(1, { resume: true });
+  fake.emit(1, 'Page.navigatedWithinDocument', { url: 'https://x.com/league' });
+  await Bun.sleep(0);
+
+  expect(session.navigationCount()).toBe(8);
+  expect(navigations[0]!.path).toBe('/league');
 });

@@ -11,15 +11,59 @@ const store = new IdbContentStore('xray-capture', indexedDB);
 const salt = crypto.randomUUID();
 const state = new SessionState(store, salt);
 
+/**
+ * Coalesces panel updates.
+ *
+ * This used to fire two messages per captured request, each recomputing the
+ * whole coverage report — which is O(routes x requests), so a 300-request
+ * capture did it 600 times and the cost grew quadratically. The panel is a
+ * progress display; four updates a second is more than enough, and the final
+ * state is always flushed.
+ */
+const BROADCAST_INTERVAL_MS = 250;
+let broadcastTimer: ReturnType<typeof setTimeout> | null = null;
+
+function send(): void {
+  void state.storageStats().then((stats) => {
+    const manifest = state.manifest();
+    void chrome.runtime
+      .sendMessage({
+        kind: 'session/stats',
+        stats: {
+          requests: manifest?.counts.requests ?? 0,
+          bodies: manifest?.counts.bodies ?? 0,
+          gaps: manifest?.counts.gaps ?? 0,
+          bytes: stats.bytes,
+          quotaPct: stats.quotaPct,
+        },
+      })
+      .catch(() => undefined);
+  });
+
+  // The side panel may be closed; a message with no receiver is not an error.
+  void chrome.runtime
+    .sendMessage({ kind: 'session/coverage', report: state.coverage() })
+    .catch(() => undefined);
+  void chrome.runtime
+    .sendMessage({ kind: 'session/redaction', entries: state.redaction() })
+    .catch(() => undefined);
+}
+
 function broadcast(): void {
-  void chrome.runtime.sendMessage({
-    kind: 'session/coverage',
-    report: state.coverage(),
-  });
-  void chrome.runtime.sendMessage({
-    kind: 'session/redaction',
-    entries: state.redaction(),
-  });
+  if (broadcastTimer !== null) return;
+  broadcastTimer = setTimeout(() => {
+    broadcastTimer = null;
+    send();
+  }, BROADCAST_INTERVAL_MS);
+}
+
+/** Flushes immediately, for moments the operator is waiting on: stop, export. */
+function broadcastNow(): void {
+  if (broadcastTimer !== null) {
+    clearTimeout(broadcastTimer);
+    broadcastTimer = null;
+  }
+  send();
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -49,6 +93,20 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       void state.ingestSourceMap(message.scriptUrl, message.text).then(broadcast);
       return;
 
+    case 'session/stopped': {
+      const manifest = state.manifest();
+      if (manifest && !manifest.endedAt) manifest.endedAt = new Date().toISOString();
+      broadcastNow();
+      return;
+    }
+
+    case 'session/detached': {
+      const detached = state.manifest();
+      if (detached && !detached.endedAt) detached.endedAt = new Date().toISOString();
+      broadcastNow();
+      return;
+    }
+
     case 'capture/navigation':
       void state.ingestNavigation(message.navigation).then(broadcast);
       return;
@@ -77,6 +135,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           blobUrl,
           filename: bundleFilename(manifest.origin, manifest.startedAt),
         });
+        // The download reads the blob synchronously from the same origin; hold
+        // it briefly, then release. An export can be hundreds of megabytes and
+        // the offscreen document outlives every one of them.
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+        broadcastNow();
         sendResponse({ ok: true });
       })();
       return true; // keep the message channel open for the async response

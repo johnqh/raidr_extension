@@ -165,6 +165,22 @@ export class SessionState {
     return this.pipeline.redactionEntries();
   }
 
+  /** Bytes held in the content store, and the share of quota that represents. */
+  async storageStats(): Promise<{ bytes: number; quotaPct: number | null }> {
+    const bytes = await this.store.totalBytes();
+    let quotaPct: number | null = null;
+    try {
+      const estimate = await navigator.storage.estimate();
+      if (estimate.quota && estimate.quota > 0) {
+        quotaPct = Math.round(((estimate.usage ?? 0) / estimate.quota) * 100);
+      }
+    } catch {
+      // Storage estimation is unavailable in some contexts; the byte count
+      // still tells the operator how large the capture has grown.
+    }
+    return { bytes, quotaPct };
+  }
+
   manifest(): XrayManifest | null {
     return this.currentManifest;
   }

@@ -117,3 +117,41 @@ test('marks cache hits so the exporter can skip refetching', () => {
   });
   expect(assembler.onLoadingFinished('r1')!.fromCache).toBe(true);
 });
+
+test('another extension’s traffic in the tab is not captured', () => {
+  // A real capture of one website contained two unrelated chrome-extension://
+  // hosts — other installed extensions' requests, in a bundle meant to be shared.
+  const assembler = new RequestAssembler();
+  assembler.onRequestWillBeSent({
+    requestId: 'r1',
+    wallTime: 1756029600,
+    request: {
+      url: 'chrome-extension://hhhnfhbnacnpipoagodepnpgncefaebe/inject.js',
+      method: 'GET',
+      headers: {},
+    },
+    type: 'Script',
+  });
+  expect(assembler.pendingCount()).toBe(0);
+  expect(assembler.onLoadingFinished('r1')).toBeNull();
+});
+
+test('non-web schemes are skipped, http and https are kept', () => {
+  const assembler = new RequestAssembler();
+  const send = (id: string, url: string) =>
+    assembler.onRequestWillBeSent({
+      requestId: id,
+      wallTime: 1756029600,
+      request: { url, method: 'GET', headers: {} },
+      type: 'Other',
+    });
+
+  send('a', 'data:text/html,hi');
+  send('b', 'blob:https://x.com/abc');
+  send('c', 'about:blank');
+  expect(assembler.pendingCount()).toBe(0);
+
+  send('d', 'https://x.com/real');
+  send('e', 'http://x.com/real');
+  expect(assembler.pendingCount()).toBe(2);
+});

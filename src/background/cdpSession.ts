@@ -62,14 +62,31 @@ export class CdpSession {
     private readonly sink: CaptureSink
   ) {}
 
-  async start(tabId: number): Promise<void> {
+  /**
+   * Attaches and enables the domains capture needs.
+   *
+   * Deliberately does NOT subscribe to CDP events. A listener registered here
+   * is registered from inside a message handler, and MV3 only restores
+   * listeners that were registered synchronously while the service worker
+   * script was first evaluated. Subscribing here means that the moment the
+   * worker is recycled — roughly 30 seconds of no activity — every subsequent
+   * event is dropped and capture dies without saying so. The worker owns the
+   * subscription and forwards to `handleEvent`.
+   */
+  async start(tabId: number, options: { resume?: boolean } = {}): Promise<void> {
     this.tabId = tabId;
-    await this.adapter.attach(tabId);
 
-    this.adapter.onEvent((eventTabId, method, params) => {
-      if (eventTabId !== this.tabId) return;
-      void this.handle(method, params);
-    });
+    if (!options.resume) {
+      await this.adapter.attach(tabId);
+    } else {
+      // Resuming after a worker restart: the attachment outlives the worker, so
+      // re-attaching throws. Enabling the domains again is harmless.
+      try {
+        await this.adapter.attach(tabId);
+      } catch {
+        // Already attached by us, which is exactly what we want.
+      }
+    }
 
     await this.adapter.sendCommand(tabId, 'Network.enable', {
       maxResourceBufferSize: MAX_RESOURCE_BUFFER,
@@ -84,6 +101,29 @@ export class CdpSession {
     if (this.tabId === null) return;
     await this.adapter.detach(this.tabId);
     this.tabId = null;
+  }
+
+  /** Entry point for CDP events, called by the service worker's top-level listener. */
+  async handleEvent(
+    tabId: number,
+    method: string,
+    params: Record<string, unknown>
+  ): Promise<void> {
+    if (tabId !== this.tabId) return;
+    return this.handle(method, params);
+  }
+
+  /** Navigation ids must keep counting across a worker restart. */
+  setNavigationCounter(value: number): void {
+    this.navigationCounter = value;
+  }
+
+  navigationCount(): number {
+    return this.navigationCounter;
+  }
+
+  tabIdOrNull(): number | null {
+    return this.tabId;
   }
 
   private async handle(

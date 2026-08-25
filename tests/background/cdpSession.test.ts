@@ -7,9 +7,13 @@ function collectingSink() {
   const requests: Array<{ url: string; body: string | null }> = [];
   const gaps: Gap[] = [];
   const sourceMaps: Array<{ scriptUrl: string; text: string }> = [];
+  const navigations: Array<{ path: string; sameDocument: boolean; html: string | null }> = [];
   const sink: CaptureSink = {
     onSourceMap: async (scriptUrl, _mapUrl, text) => {
       sourceMaps.push({ scriptUrl, text });
+    },
+    onNavigation: async (nav) => {
+      navigations.push({ path: nav.path, sameDocument: nav.sameDocument, html: nav.html });
     },
     onRequest: async (assembled, body) => {
       requests.push({ url: assembled.url, body });
@@ -19,7 +23,7 @@ function collectingSink() {
     },
     onRuntime: async () => {},
   };
-  return { sink, requests, gaps, sourceMaps };
+  return { sink, requests, gaps, sourceMaps, navigations };
 }
 
 test('enables the CDP domains capture depends on', async () => {

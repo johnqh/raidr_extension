@@ -10,7 +10,7 @@ import {
   type XrayManifest,
 } from '@sudobility/xray_lib';
 import type { AssembledRequest } from '@/background/requestAssembler';
-import type { RuntimeSnapshot } from '@/background/cdpSession';
+import type { NavigationRecord, RuntimeSnapshot } from '@/background/cdpSession';
 import { CapturePipeline } from './capturePipeline';
 import type { ContentStore } from './store';
 import type { BundleInput } from '@sudobility/xray_lib';
@@ -25,6 +25,9 @@ export class SessionState {
   private visitedRoutes = new Set<string>();
   private framework: StackFingerprint | null = null;
   private sourceMaps = new Map<string, string>();
+  private navigations: Array<{ navigationId: string; path: string; sameDocument: boolean }> = [];
+  /** route path → content hash of the rendered DOM at navigation time */
+  private snapshots = new Map<string, string>();
 
   constructor(
     private readonly store: ContentStore,
@@ -50,9 +53,39 @@ export class SessionState {
     this.refreshCounts();
   }
 
+  /**
+   * A navigation is the only record that a page was visited. Discarding its URL
+   * — which this did until it was found on a real capture — leaves the coverage
+   * meter unable to mark anything visited and the route model with nothing to
+   * join on.
+   */
+  async ingestNavigation(navigation: NavigationRecord): Promise<void> {
+    if (!this.navigations.some((n) => n.navigationId === navigation.navigationId)) {
+      this.navigations.push({
+        navigationId: navigation.navigationId,
+        path: navigation.path,
+        sameDocument: navigation.sameDocument,
+      });
+    }
+    this.knownRoutes.add(navigation.path);
+    this.markVisited(navigation.path);
+
+    // A client-rendered route was never served as a document; the rendered DOM
+    // is the only evidence of what that page contained.
+    if (navigation.html && !this.snapshots.has(navigation.path)) {
+      const hash = await this.store.put(new TextEncoder().encode(navigation.html));
+      this.snapshots.set(navigation.path, hash);
+    }
+    this.refreshCounts();
+  }
+
   ingestRuntime(snapshot: RuntimeSnapshot): void {
     for (const chunk of snapshot.chunks) this.knownChunks.add(chunk);
     for (const route of snapshot.routes) this.knownRoutes.add(route);
+    // Links the page offers are candidate routes. For an app whose router is
+    // not readable, this is what stops the meter from claiming 100% coverage
+    // when the operator has seen one page of twelve.
+    for (const link of snapshot.links) this.knownRoutes.add(link);
     if (snapshot.framework) {
       this.framework = snapshot.framework;
       if (this.currentManifest) this.currentManifest.stack = snapshot.framework;
@@ -140,6 +173,7 @@ export class SessionState {
       gaps: this.gaps,
       redaction: this.redaction(),
       sourceMaps: this.sourceMapHashes(),
+      snapshots: Object.fromEntries(this.snapshots),
       runtime: {
         framework: this.framework,
         routes: Array.from(this.knownRoutes),
@@ -149,9 +183,7 @@ export class SessionState {
           loaded: this.loadedChunks(),
         },
         coverage: this.coverage(),
-        // Populated by the CLI's capture harness; the extension stamps
-        // navigation ids onto rows instead of emitting a separate list.
-        navigations: [],
+        navigations: this.navigations,
       },
     };
   }

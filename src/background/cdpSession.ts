@@ -15,6 +15,17 @@ export interface RuntimeSnapshot {
   framework: StackFingerprint | null;
   routes: string[];
   chunks: string[];
+  /** Internal links this page offers — the route table for apps that hide theirs. */
+  links: string[];
+}
+
+export interface NavigationRecord {
+  navigationId: string;
+  path: string;
+  /** True for a client-side route change, where no Document was ever served. */
+  sameDocument: boolean;
+  /** Rendered DOM at the moment the navigation settled. */
+  html: string | null;
 }
 
 export interface CaptureSink {
@@ -24,6 +35,7 @@ export interface CaptureSink {
   ): Promise<void>;
   onGap(gap: Gap): Promise<void>;
   onRuntime(snapshot: RuntimeSnapshot): Promise<void>;
+  onNavigation(navigation: NavigationRecord): Promise<void>;
   onSourceMap(scriptUrl: string, mapUrl: string, text: string): Promise<void>;
 }
 
@@ -107,11 +119,41 @@ export class CdpSession {
         return;
 
       case 'Page.loadEventFired':
-      case 'Page.navigatedWithinDocument':
+      case 'Page.navigatedWithinDocument': {
+        const sameDocument = method === 'Page.navigatedWithinDocument';
         this.navigationCounter += 1;
-        this.assembler.setNavigationId(`nav${this.navigationCounter}`);
+        const navigationId = `nav${this.navigationCounter}`;
+        this.assembler.setNavigationId(navigationId);
+
+        // CDP hands us the URL on a same-document navigation; after a full load
+        // we ask the page. Either way the path must be recorded — a navigation
+        // whose URL was discarded is a page nobody can tell was ever visited.
+        let path = '/';
+        if (sameDocument && typeof params.url === 'string') {
+          try {
+            path = new URL(params.url).pathname;
+          } catch {
+            path = String(params.url);
+          }
+        } else {
+          path = await this.evaluate<string>(PROBE_SOURCES.location, '/');
+        }
+
+        // A client-rendered route was never served as a document, so the
+        // rendered DOM is the only evidence that page existed.
+        const html = sameDocument
+          ? await this.evaluate<string>(PROBE_SOURCES.dom, '')
+          : null;
+
+        await this.sink.onNavigation({
+          navigationId,
+          path,
+          sameDocument,
+          html: html && html.length > 0 ? html : null,
+        });
         await this.introspect();
         return;
+      }
 
       default:
         return;
@@ -175,28 +217,29 @@ export class CdpSession {
     }
   }
 
+  private async evaluate<T>(expression: string, fallback: T): Promise<T> {
+    if (this.tabId === null) return fallback;
+    try {
+      const result = (await this.adapter.sendCommand(this.tabId, 'Runtime.evaluate', {
+        expression,
+        returnByValue: true,
+      })) as { result?: { value?: T } } | undefined;
+      return result?.result?.value ?? fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
   private async introspect(): Promise<void> {
     if (this.tabId === null) return;
 
-    const evaluate = async <T>(expression: string, fallback: T): Promise<T> => {
-      try {
-        const result = (await this.adapter.sendCommand(
-          this.tabId!,
-          'Runtime.evaluate',
-          { expression, returnByValue: true }
-        )) as { result?: { value?: T } } | undefined;
-        return result?.result?.value ?? fallback;
-      } catch {
-        return fallback;
-      }
-    };
-
-    const [framework, routes, chunks] = await Promise.all([
-      evaluate<StackFingerprint | null>(PROBE_SOURCES.framework, null),
-      evaluate<string[]>(PROBE_SOURCES.routes, []),
-      evaluate<string[]>(PROBE_SOURCES.chunks, []),
+    const [framework, routes, chunks, links] = await Promise.all([
+      this.evaluate<StackFingerprint | null>(PROBE_SOURCES.framework, null),
+      this.evaluate<string[]>(PROBE_SOURCES.routes, []),
+      this.evaluate<string[]>(PROBE_SOURCES.chunks, []),
+      this.evaluate<string[]>(PROBE_SOURCES.links, []),
     ]);
 
-    await this.sink.onRuntime({ framework, routes, chunks });
+    await this.sink.onRuntime({ framework, routes, chunks, links });
   }
 }

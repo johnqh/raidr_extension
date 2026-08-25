@@ -5,6 +5,7 @@ const g = globalThis as Record<string, unknown>;
 
 afterEach(() => {
   delete g.document;
+  delete g.location;
   delete g.__REACT_DEVTOOLS_GLOBAL_HOOK__;
   delete g.__VUE_DEVTOOLS_GLOBAL_HOOK__;
   delete g.__webpack_require__;
@@ -166,4 +167,36 @@ test('falls back to document-referenced chunks when no deps map exists', () => {
   const chunks = run<string[]>(PROBE_SOURCES.chunks);
   expect(chunks).toContain('assets/index-B6zGc9AK.js');
   expect(chunks).toContain('assets/Users-CqHBajCK.js');
+});
+
+test('collects the internal links a page offers', () => {
+  g.location = { origin: 'https://x.com', pathname: '/' };
+  g.document = {
+    querySelectorAll: () => [
+      { getAttribute: () => '/league' },
+      { getAttribute: () => 'https://x.com/vanguard' },
+      { getAttribute: () => 'https://other.com/away' },
+      { getAttribute: () => '/cv?tab=1#top' },
+      { getAttribute: () => '/fe/{plugin}/x.js' },
+    ],
+    querySelector: () => null,
+  };
+  const links = run<string[]>(PROBE_SOURCES.links);
+  expect(links).toEqual(['/league', '/vanguard', '/cv']);
+  delete g.location;
+});
+
+test('link probe returns nothing rather than throwing without a document', () => {
+  expect(run<string[]>(PROBE_SOURCES.links)).toEqual([]);
+});
+
+test('reads the current pathname for navigation recording', () => {
+  g.location = { origin: 'https://x.com', pathname: '/league' };
+  expect(run<string>(PROBE_SOURCES.location)).toBe('/league');
+  delete g.location;
+});
+
+test('snapshots the rendered DOM', () => {
+  g.document = { documentElement: { outerHTML: '<html><body>rendered</body></html>' } };
+  expect(run<string>(PROBE_SOURCES.dom)).toContain('rendered');
 });

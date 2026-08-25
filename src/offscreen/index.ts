@@ -49,6 +49,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       void state.ingestSourceMap(message.scriptUrl, message.text).then(broadcast);
       return;
 
+    case 'capture/navigation':
+      void state.ingestNavigation(message.navigation).then(broadcast);
+      return;
+
     case 'capture/runtime':
       state.ingestRuntime(message.snapshot);
       broadcast();

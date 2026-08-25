@@ -68,6 +68,7 @@ test('runtime snapshots feed chunk and route coverage', async () => {
     },
     routes: ['/', '/settings'],
     chunks: ['a.js', 'b.js'],
+    links: [],
   });
 
   const report = state.coverage();
@@ -82,6 +83,7 @@ test('a chunk becomes loaded once a request for it is captured', async () => {
     framework: null,
     routes: [],
     chunks: ['assets/About-a1b2.js', 'assets/Admin-c3d4.js'],
+    links: [],
   });
   await state.ingestRequest(
     assembled('https://example.com/assets/About-a1b2.js'),
@@ -95,7 +97,7 @@ test('a chunk becomes loaded once a request for it is captured', async () => {
 
 test('a route becomes visited once a navigation reports it', async () => {
   const state = session();
-  state.ingestRuntime({ framework: null, routes: ['/', '/settings'], chunks: [] });
+  state.ingestRuntime({ framework: null, routes: ['/', '/settings'], chunks: [], links: [] });
   await state.ingestRequest(assembled('https://example.com/settings'), '{}');
   state.markVisited('/settings');
 
@@ -133,4 +135,71 @@ test('redaction entries surface through the session', async () => {
     '{"access_token":"eyJa.b.c"}'
   );
   expect(state.redaction()[0]!.kind).toBe('jwt');
+});
+
+test('a navigation is recorded and marks its route visited', async () => {
+  // Regression: the extension observed every navigation but discarded the URL,
+  // and markVisited was dead code — so the coverage meter could never mark
+  // anything visited and the route model had nothing to join on.
+  const state = session();
+  await state.ingestNavigation({
+    navigationId: 'nav1',
+    path: '/league',
+    sameDocument: true,
+    html: null,
+  });
+
+  const report = state.coverage();
+  expect(report.routes.total).toBe(1);
+  expect(report.routes.visited).toBe(1);
+  expect(report.routes.unvisited).toEqual([]);
+  expect(state.bundleInput().runtime.navigations).toEqual([
+    { navigationId: 'nav1', path: '/league', sameDocument: true },
+  ]);
+});
+
+test('a client-rendered navigation stores the rendered DOM', async () => {
+  const state = session();
+  await state.ingestNavigation({
+    navigationId: 'nav1',
+    path: '/league',
+    sameDocument: true,
+    html: '<html><body>league</body></html>',
+  });
+
+  const snapshots = state.bundleInput().snapshots!;
+  expect(Object.keys(snapshots)).toEqual(['/league']);
+  const stored = await state.bundleInput().store.get(snapshots['/league']!);
+  expect(new TextDecoder().decode(stored!)).toContain('league');
+});
+
+test('links a page offers become known routes, so coverage is not falsely 100%', async () => {
+  const state = session();
+  await state.ingestNavigation({
+    navigationId: 'nav1',
+    path: '/',
+    sameDocument: false,
+    html: null,
+  });
+  state.ingestRuntime({
+    framework: null,
+    routes: [],
+    chunks: [],
+    links: ['/', '/league', '/vanguard', '/cv'],
+  });
+
+  const report = state.coverage();
+  expect(report.routes.total).toBe(4);
+  expect(report.routes.visited).toBe(1);
+  expect(report.routes.unvisited.sort()).toEqual(['/cv', '/league', '/vanguard']);
+  expect(report.complete).toBe(false);
+});
+
+test('revisiting a route does not double-count it', async () => {
+  const state = session();
+  for (const navigationId of ['nav1', 'nav2']) {
+    await state.ingestNavigation({ navigationId, path: '/league', sameDocument: true, html: null });
+  }
+  expect(state.coverage().routes.total).toBe(1);
+  expect(state.bundleInput().runtime.navigations).toHaveLength(2);
 });

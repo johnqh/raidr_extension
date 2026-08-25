@@ -202,8 +202,60 @@ export function readChunkManifest(): string[] {
   return [];
 }
 
+/**
+ * Every internal link the current page offers. For an app whose router is not
+ * readable from the runtime — a server-rendered site, or any framework that
+ * keeps its route table private — this is the only way to know which pages
+ * exist before the operator closes the tab.
+ */
+export function readLinks(): string[] {
+  const g = globalThis as any;
+  const doc = g.document;
+  if (!doc || !doc.querySelectorAll) return [];
+
+  const origin = g.location ? String(g.location.origin) : '';
+  const found: string[] = [];
+
+  for (const anchor of Array.prototype.slice.call(
+    doc.querySelectorAll('a[href]')
+  ) as any[]) {
+    const raw = String(anchor.getAttribute('href') || '');
+    if (!raw) continue;
+
+    let path = '';
+    if (raw.indexOf('/') === 0 && raw.indexOf('//') !== 0) {
+      path = raw;
+    } else if (origin && raw.indexOf(origin) === 0) {
+      path = raw.slice(origin.length) || '/';
+    } else {
+      continue;
+    }
+
+    path = String(path.split('#')[0]).split('?')[0] as string;
+    // A template placeholder in documentation is not a page.
+    if (!path || /[{}$]/.test(path)) continue;
+    if (found.indexOf(path) < 0) found.push(path);
+  }
+
+  return found;
+}
+
+export function readLocation(): string {
+  const g = globalThis as any;
+  return g.location ? String(g.location.pathname) : '/';
+}
+
+export function snapshotDom(): string {
+  const g = globalThis as any;
+  const doc = g.document;
+  return doc && doc.documentElement ? String(doc.documentElement.outerHTML) : '';
+}
+
 export const PROBE_SOURCES = {
   framework: `(${detectFramework.toString()})()`,
   routes: `(${readRoutes.toString()})()`,
   chunks: `(${readChunkManifest.toString()})()`,
+  links: `(${readLinks.toString()})()`,
+  location: `(${readLocation.toString()})()`,
+  dom: `(${snapshotDom.toString()})()`,
 };

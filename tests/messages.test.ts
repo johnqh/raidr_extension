@@ -39,3 +39,36 @@ test('every message kind the extension sends is recognised', () => {
     expect(isXrayMessage({ kind })).toBe(true);
   }
 });
+
+test('the panel stylesheet defines every token the design preset consumes', async () => {
+  // A token the preset maps but the app never defines resolves to a fully
+  // transparent colour: the component lays out correctly and simply cannot be
+  // seen. That is how the coverage bar rendered at alpha zero.
+  const css = await Bun.file(`${import.meta.dir}/../src/sidepanel/index.css`).text();
+  for (const token of [
+    'background', 'foreground', 'card', 'card-foreground', 'popover',
+    'popover-foreground', 'primary', 'primary-foreground', 'secondary',
+    'secondary-foreground', 'muted', 'muted-foreground', 'accent',
+    'accent-foreground', 'destructive', 'destructive-foreground',
+    'success', 'success-foreground', 'warning', 'warning-foreground',
+    'info', 'info-foreground', 'border', 'input', 'ring', 'radius',
+    'border-width', 'font-sans', 'font-mono', 'shadow-sm', 'shadow-md', 'shadow-lg',
+  ]) {
+    expect(css).toContain(`--${token}:`);
+  }
+});
+
+test('both light and dark define the status tokens', async () => {
+  const css = await Bun.file(`${import.meta.dir}/../src/sidepanel/index.css`).text();
+  const dark = css.slice(css.indexOf('.dark {'));
+  for (const token of ['success', 'warning', 'info']) {
+    expect(dark).toContain(`--${token}:`);
+  }
+});
+
+test('the panel imports its stylesheet', async () => {
+  // The panel shipped for weeks with no CSS wired at all: every utility class
+  // in it was inert and the side panel rendered unstyled.
+  const main = await Bun.file(`${import.meta.dir}/../src/sidepanel/main.tsx`).text();
+  expect(main).toContain("import './index.css'");
+});

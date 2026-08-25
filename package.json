@@ -1,7 +1,7 @@
 {
   "name": "xray_extension",
   "version": "0.0.1",
-  "description": "xray — capture a web app's traffic and runtime for reconstruction",
+  "description": "xray \u2014 capture a web app's traffic and runtime for reconstruction",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,10 +11,18 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
+    "@radix-ui/react-label": "^2.1.8",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@sudobility/components": "^5.3.11",
+    "@sudobility/design": "^1.1.48",
     "@sudobility/xray_lib": "file:../xray_lib",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "fflate": "^0.8.2",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.2.1",

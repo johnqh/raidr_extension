@@ -1,87 +1,99 @@
+import { Badge, Card, CardContent, Progress } from '@sudobility/components';
 import type { CoverageReport } from '@sudobility/xray_lib';
 
 interface Props {
   report: CoverageReport;
 }
 
+/** Full coverage is the goal, so the bar only turns green when it is reached. */
+function toneFor(pct: number): 'success' | 'warning' | 'default' {
+  if (pct >= 100) return 'success';
+  if (pct >= 60) return 'default';
+  return 'warning';
+}
+
 function Track({
   label,
   pct,
   detail,
+  missing,
+  missingLabel,
 }: {
   label: string;
   pct: number;
   detail: string;
+  missing: string[];
+  missingLabel: string;
 }) {
   return (
-    <div className="mb-3">
-      <div className="flex justify-between text-xs mb-1">
-        <span>{label}</span>
-        <span className="tabular-nums opacity-70">{detail}</span>
+    <div className="mb-4 last:mb-0">
+      <div className="mb-1.5 flex items-baseline justify-between">
+        <span className="text-xs font-medium">{label}</span>
+        <span className="font-mono text-xs text-muted-foreground">{detail}</span>
       </div>
-      <div className="h-1.5 rounded bg-neutral-200">
-        <div
-          className="h-1.5 rounded bg-black transition-all"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
+
+      <Progress value={pct} variant={toneFor(pct)} size="sm" />
+
+      {missing.length > 0 && (
+        <details className="mt-2">
+          <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+            {missing.length} {missingLabel}
+          </summary>
+          <ul className="mt-1.5 space-y-0.5">
+            {missing.map((item) => (
+              <li key={item} className="truncate font-mono text-[11px] text-muted-foreground">
+                {item}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
     </div>
   );
 }
 
 export function CoverageMeter({ report }: Props) {
   return (
-    <section>
-      <Track
-        label="Chunks"
-        pct={report.chunks.pct}
-        detail={`${report.chunks.loaded} / ${report.chunks.known}`}
-      />
-      <Track
-        label="Routes"
-        pct={report.routes.pct}
-        detail={`${report.routes.visited} / ${report.routes.total}`}
-      />
+    <Card className="border border-border">
+      <CardContent className="pt-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold">Coverage</h2>
+          <Badge variant={report.complete ? 'success' : 'warning'} size="sm" pill>
+            {report.complete ? 'Complete' : 'Incomplete'}
+          </Badge>
+        </div>
 
-      {report.chunks.missing.length > 0 && (
-        <details className="text-xs mb-2">
-          <summary className="cursor-pointer opacity-70">
-            {report.chunks.missing.length} chunks not loaded
+        <Track
+          label="Chunks"
+          pct={report.chunks.pct}
+          detail={`${report.chunks.loaded} / ${report.chunks.known}`}
+          missing={report.chunks.missing}
+          missingLabel="not loaded"
+        />
+        <Track
+          label="Routes"
+          pct={report.routes.pct}
+          detail={`${report.routes.visited} / ${report.routes.total}`}
+          missing={report.routes.unvisited}
+          missingLabel="not visited"
+        />
+
+        <details>
+          <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+            {report.endpoints.length} endpoints observed
           </summary>
-          <ul className="mt-1 font-mono space-y-0.5">
-            {report.chunks.missing.map((chunk) => (
-              <li key={chunk} className="truncate">{chunk}</li>
+          <ul className="mt-1.5 space-y-0.5">
+            {report.endpoints.map((endpoint) => (
+              <li key={endpoint.key} className="flex items-baseline justify-between gap-2">
+                <span className="truncate font-mono text-[11px]">{endpoint.key}</span>
+                <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+                  {endpoint.calls}
+                </span>
+              </li>
             ))}
           </ul>
         </details>
-      )}
-
-      {report.routes.unvisited.length > 0 && (
-        <details className="text-xs mb-2">
-          <summary className="cursor-pointer opacity-70">
-            {report.routes.unvisited.length} routes not visited
-          </summary>
-          <ul className="mt-1 font-mono space-y-0.5">
-            {report.routes.unvisited.map((route) => (
-              <li key={route} className="truncate">{route}</li>
-            ))}
-          </ul>
-        </details>
-      )}
-
-      <details className="text-xs">
-        <summary className="cursor-pointer opacity-70">
-          {report.endpoints.length} endpoints observed
-        </summary>
-        <ul className="mt-1 space-y-0.5">
-          {report.endpoints.map((endpoint) => (
-            <li key={endpoint.key} className="flex justify-between gap-2">
-              <span className="font-mono truncate">{endpoint.key}</span>
-              <span className="tabular-nums opacity-70">{endpoint.calls}</span>
-            </li>
-          ))}
-        </ul>
-      </details>
-    </section>
+      </CardContent>
+    </Card>
   );
 }

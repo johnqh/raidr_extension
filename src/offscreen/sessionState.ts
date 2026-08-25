@@ -13,7 +13,7 @@ import type { AssembledRequest } from '@/background/requestAssembler';
 import type { RuntimeSnapshot } from '@/background/cdpSession';
 import { CapturePipeline } from './capturePipeline';
 import type { ContentStore } from './store';
-import type { BundleInput } from './exporter';
+import type { BundleInput } from '@sudobility/xray_lib';
 
 export class SessionState {
   private pipeline: CapturePipeline;
@@ -149,6 +149,9 @@ export class SessionState {
           loaded: this.loadedChunks(),
         },
         coverage: this.coverage(),
+        // Populated by the CLI's capture harness; the extension stamps
+        // navigation ids onto rows instead of emitting a separate list.
+        navigations: [],
       },
     };
   }

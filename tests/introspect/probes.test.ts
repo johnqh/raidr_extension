@@ -4,6 +4,7 @@ import { PROBE_SOURCES } from '../../src/introspect/probes';
 const g = globalThis as Record<string, unknown>;
 
 afterEach(() => {
+  delete g.document;
   delete g.__REACT_DEVTOOLS_GLOBAL_HOOK__;
   delete g.__VUE_DEVTOOLS_GLOBAL_HOOK__;
   delete g.__webpack_require__;
@@ -107,4 +108,62 @@ test('reads Vue Router paths', () => {
 
 test('returns an empty route list when no router is reachable', () => {
   expect(run<string[]>(PROBE_SOURCES.routes)).toEqual([]);
+});
+
+test('detects React from DOM fiber keys without React DevTools installed', () => {
+  // Production React never publishes a global; the devtools hook exists only
+  // when the extension is installed. DOM fiber keys are always present.
+  const element: Record<string, unknown> = { __reactFiber$abc123: {} };
+  g.document = {
+    querySelectorAll: () => [element],
+    querySelector: () => null,
+  };
+  const result = run<{ framework: string }>(PROBE_SOURCES.framework);
+  expect(result.framework).toBe('react');
+});
+
+test('detects Vue and its version from the mounted app instance', () => {
+  const element: Record<string, unknown> = {
+    __vue_app__: { version: '3.4.21', config: { globalProperties: {} } },
+  };
+  g.document = {
+    querySelectorAll: () => [element],
+    querySelector: () => null,
+  };
+  const result = run<{ framework: string; frameworkVersion: string | null }>(
+    PROBE_SOURCES.framework
+  );
+  expect(result.framework).toBe('vue');
+  expect(result.frameworkVersion).toBe('3.4.21');
+});
+
+test('detects Vite from hashed module script paths', () => {
+  g.document = {
+    querySelectorAll: () => [],
+    querySelector: (selector: string) =>
+      selector.includes('module')
+        ? { getAttribute: () => '/assets/index-B6zGc9AK.js' }
+        : null,
+  };
+  expect(run<{ bundler: string }>(PROBE_SOURCES.framework).bundler).toBe('vite');
+});
+
+test('detects webpack from a webpackChunk global', () => {
+  g.webpackChunkmyapp = [];
+  g.document = { querySelectorAll: () => [], querySelector: () => null };
+  expect(run<{ bundler: string }>(PROBE_SOURCES.framework).bundler).toBe('webpack');
+  delete g.webpackChunkmyapp;
+});
+
+test('falls back to document-referenced chunks when no deps map exists', () => {
+  g.document = {
+    querySelectorAll: (selector: string) =>
+      selector.includes('script')
+        ? [{ getAttribute: () => '/assets/index-B6zGc9AK.js' }]
+        : [{ getAttribute: () => '/assets/Users-CqHBajCK.js' }],
+    querySelector: () => null,
+  };
+  const chunks = run<string[]>(PROBE_SOURCES.chunks);
+  expect(chunks).toContain('assets/index-B6zGc9AK.js');
+  expect(chunks).toContain('assets/Users-CqHBajCK.js');
 });

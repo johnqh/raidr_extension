@@ -232,3 +232,52 @@ test('scriptParsed discards a 404 HTML page served for a speculative .map', asyn
     globalThis.fetch = originalFetch;
   }
 });
+
+test('a 204 response is not recorded as a gap — it has no body by definition', async () => {
+  const fake = new FakeChromeAdapter();
+  fake.respondWith('Network.getResponseBody', () => {
+    throw new Error('No resource with given identifier found');
+  });
+  const { sink, gaps, requests } = collectingSink();
+  await new CdpSession(fake, sink).start(1);
+
+  fake.emit(1, 'Network.requestWillBeSent', {
+    requestId: 'r1',
+    wallTime: 1756029600,
+    request: { url: 'https://x.com/api/me', method: 'OPTIONS', headers: {} },
+    type: 'Preflight',
+  });
+  fake.emit(1, 'Network.responseReceived', {
+    requestId: 'r1',
+    response: { status: 204, headers: {}, mimeType: null },
+  });
+  fake.emit(1, 'Network.loadingFinished', { requestId: 'r1' });
+  await Bun.sleep(0);
+
+  expect(gaps).toHaveLength(0);
+  expect(requests).toHaveLength(1);
+  expect(requests[0]!.body).toBeNull();
+  // We must not even ask for a body we know cannot exist.
+  expect(fake.commands.some((c) => c.method === 'Network.getResponseBody')).toBe(false);
+});
+
+test('a 304 response is likewise not a gap', async () => {
+  const fake = new FakeChromeAdapter();
+  const { sink, gaps } = collectingSink();
+  await new CdpSession(fake, sink).start(1);
+
+  fake.emit(1, 'Network.requestWillBeSent', {
+    requestId: 'r1',
+    wallTime: 1756029600,
+    request: { url: 'https://x.com/app.js', method: 'GET', headers: {} },
+    type: 'Script',
+  });
+  fake.emit(1, 'Network.responseReceived', {
+    requestId: 'r1',
+    response: { status: 304, headers: {}, mimeType: 'application/javascript' },
+  });
+  fake.emit(1, 'Network.loadingFinished', { requestId: 'r1' });
+  await Bun.sleep(0);
+
+  expect(gaps).toHaveLength(0);
+});

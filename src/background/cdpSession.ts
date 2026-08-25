@@ -4,6 +4,10 @@ import { RequestAssembler, type AssembledRequest } from './requestAssembler';
 import { PROBE_SOURCES } from '@/introspect/probes';
 import { candidateMapUrls, isUsefulSourceMap } from './sourceMaps';
 
+/** Statuses that carry no body by definition. Asking for one yields a CDP
+ *  error, which must not be recorded as lost capture. */
+const BODILESS_STATUSES = new Set([101, 204, 205, 304]);
+
 const MAX_RESOURCE_BUFFER = 100 * 1024 * 1024;
 const MAX_TOTAL_BUFFER = 500 * 1024 * 1024;
 
@@ -117,6 +121,14 @@ export class CdpSession {
   private async finish(requestId: string): Promise<void> {
     const assembled = this.assembler.onLoadingFinished(requestId);
     if (!assembled || this.tabId === null) return;
+
+    if (
+      assembled.method === 'HEAD' ||
+      (assembled.status !== null && BODILESS_STATUSES.has(assembled.status))
+    ) {
+      await this.sink.onRequest(assembled, null);
+      return;
+    }
 
     let body: string | null = null;
     try {

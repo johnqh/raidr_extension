@@ -16,7 +16,50 @@ export function detectFramework(): StackFingerprint {
   const reactHook = g.__REACT_DEVTOOLS_GLOBAL_HOOK__;
   const vueHook = g.__VUE_DEVTOOLS_GLOBAL_HOOK__;
 
-  if (reactHook && reactHook.renderers && reactHook.renderers.size > 0) {
+  // The devtools hooks exist only when the devtools extension is installed, so
+  // they cannot be the primary signal. Both frameworks leave unmistakable
+  // traces on the DOM itself, which are present in every production build.
+  const doc = g.document;
+  let vueAppInstance: any = null;
+  let reactByDom = false;
+
+  if (doc && doc.querySelectorAll) {
+    const candidates = Array.prototype.slice.call(
+      doc.querySelectorAll('body, body *'),
+      0,
+      200
+    ) as any[];
+
+    for (const element of candidates) {
+      if (!vueAppInstance && element.__vue_app__) vueAppInstance = element.__vue_app__;
+      if (!reactByDom) {
+        for (const key in element) {
+          if (
+            key.indexOf('__reactFiber$') === 0 ||
+            key.indexOf('__reactContainer$') === 0 ||
+            key.indexOf('__reactProps$') === 0
+          ) {
+            reactByDom = true;
+            break;
+          }
+        }
+      }
+      if (vueAppInstance && reactByDom) break;
+    }
+  }
+
+  if (vueAppInstance) {
+    framework = 'vue';
+    frameworkVersion = vueAppInstance.version ?? vueHook?.Vue?.version ?? null;
+  } else if (reactByDom) {
+    framework = 'react';
+    // Production React does not publish its version to the page; the devtools
+    // hook is the only runtime source, and it is usually absent.
+    const renderers = reactHook?.renderers
+      ? (Array.from(reactHook.renderers.values()) as any[])
+      : [];
+    frameworkVersion = renderers[0]?.version ?? null;
+  } else if (reactHook && reactHook.renderers && reactHook.renderers.size > 0) {
     framework = 'react';
     const renderers = Array.from(reactHook.renderers.values()) as any[];
     frameworkVersion = renderers[0]?.version ?? null;
@@ -26,8 +69,19 @@ export function detectFramework(): StackFingerprint {
   }
 
   let bundler: 'webpack' | 'vite' | 'unknown' = 'unknown';
-  if (typeof g.__webpack_require__ !== 'undefined') bundler = 'webpack';
-  else if (typeof g.__vite__mapDeps !== 'undefined') bundler = 'vite';
+  const webpackGlobal =
+    typeof g.__webpack_require__ !== 'undefined' ||
+    Object.keys(g).some((key) => key.indexOf('webpackChunk') === 0);
+  if (webpackGlobal) {
+    bundler = 'webpack';
+  } else if (typeof g.__vite__mapDeps !== 'undefined') {
+    bundler = 'vite';
+  } else if (doc && doc.querySelector) {
+    // Vite production builds emit hashed module scripts under /assets/.
+    const moduleScript = doc.querySelector('script[type="module"][src]');
+    const src = moduleScript ? String(moduleScript.getAttribute('src')) : '';
+    if (/\/assets\/[^/]+-[A-Za-z0-9_-]{6,}\.js/.test(src)) bundler = 'vite';
+  }
 
   const stateLibraries: string[] = [];
   if (g.__REDUX_DEVTOOLS_EXTENSION__ || g.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__) {
@@ -35,10 +89,14 @@ export function detectFramework(): StackFingerprint {
   }
   if (vueHook && vueHook.Pinia) stateLibraries.push('pinia');
 
+  let router: string | null = null;
+  if (vueAppInstance?.config?.globalProperties?.$router) router = 'vue-router';
+  else if (g.__reactRouterDataRouter?.routes) router = 'react-router';
+
   return {
     framework,
     frameworkVersion,
-    router: null,
+    router,
     routerVersion: null,
     stateLibraries,
     bundler,
@@ -89,6 +147,36 @@ export function readChunkManifest(): string[] {
 
   const webpackRequire = g.__webpack_require__;
   const urlHelper = webpackRequire?.u;
+
+  if (typeof urlHelper !== 'function') {
+    // Vite only defines __vite__mapDeps when a dynamic import carries CSS or
+    // asset dependencies. Without it the runtime cannot enumerate chunks that
+    // have not loaded; the best available signal is what the document
+    // references. Unloaded chunks are recovered offline from the entry source.
+    const doc = g.document;
+    if (doc && doc.querySelectorAll) {
+      const referenced: string[] = [];
+      const add = (value: unknown): void => {
+        const path = String(value ?? '');
+        if (!path) return;
+        const match = /\/assets\/[^"'\s)]+\.js/.exec(path);
+        if (match && referenced.indexOf(match[0].slice(1)) < 0) {
+          referenced.push(match[0].slice(1));
+        }
+      };
+      for (const script of Array.prototype.slice.call(
+        doc.querySelectorAll('script[type="module"][src]')
+      ) as any[]) {
+        add(script.getAttribute('src'));
+      }
+      for (const link of Array.prototype.slice.call(
+        doc.querySelectorAll('link[rel="modulepreload"][href]')
+      ) as any[]) {
+        add(link.getAttribute('href'));
+      }
+      if (referenced.length > 0) return referenced;
+    }
+  }
   if (typeof urlHelper === 'function') {
     // webpack inlines the chunk id→name map into the body of `u`. Recovering
     // the ids from its source is the only way to enumerate chunks that have

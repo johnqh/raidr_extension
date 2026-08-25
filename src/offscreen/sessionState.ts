@@ -60,6 +60,14 @@ export class SessionState {
    * join on.
    */
   async ingestNavigation(navigation: NavigationRecord): Promise<void> {
+    // The origin is seeded from whatever tab was active when capture started,
+    // which is wrong the moment the operator navigates elsewhere — it produced
+    // a bundle of one site named after another. The first full page load is
+    // the authoritative answer.
+    if (!navigation.sameDocument && navigation.origin && this.currentManifest) {
+      this.currentManifest.origin = navigation.origin;
+    }
+
     if (!this.navigations.some((n) => n.navigationId === navigation.navigationId)) {
       this.navigations.push({
         navigationId: navigation.navigationId,
@@ -71,8 +79,10 @@ export class SessionState {
     this.markVisited(navigation.path);
 
     // A client-rendered route was never served as a document; the rendered DOM
-    // is the only evidence of what that page contained.
-    if (navigation.html && !this.snapshots.has(navigation.path)) {
+    // is the only evidence of what that page contained. Last write wins: a
+    // router that touches history twice per click produces two navigations for
+    // the same path, and the later one has had more time to render.
+    if (navigation.html) {
       const hash = await this.store.put(new TextEncoder().encode(navigation.html));
       this.snapshots.set(navigation.path, hash);
     }

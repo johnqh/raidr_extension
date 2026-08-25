@@ -245,10 +245,56 @@ export function readLocation(): string {
   return g.location ? String(g.location.pathname) : '/';
 }
 
-export function snapshotDom(): string {
+export function readHref(): string {
+  const g = globalThis as any;
+  return g.location ? String(g.location.href) : '';
+}
+
+/**
+ * Waits for the DOM to stop changing before reading it.
+ *
+ * navigatedWithinDocument fires on pushState, which happens before the client
+ * router renders the new route — reading immediately captures the *previous*
+ * page's DOM under the new URL. Settling on a quiet MutationObserver is what
+ * makes the snapshot belong to the page it is named after.
+ */
+export function snapshotDom(): Promise<string> {
   const g = globalThis as any;
   const doc = g.document;
-  return doc && doc.documentElement ? String(doc.documentElement.outerHTML) : '';
+  if (!doc || !doc.documentElement) return Promise.resolve('');
+
+  return new Promise<string>((resolve) => {
+    const QUIET_MS = 250;
+    const MAX_MS = 3000;
+    let timer: ReturnType<typeof setTimeout>;
+
+    const finish = (): void => {
+      try {
+        observer.disconnect();
+      } catch {
+        // Observer may already be gone; the DOM read is what matters.
+      }
+      clearTimeout(timer);
+      clearTimeout(ceiling);
+      resolve(String(doc.documentElement.outerHTML));
+    };
+
+    const observer = new g.MutationObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(finish, QUIET_MS);
+    });
+
+    observer.observe(doc.documentElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      characterData: true,
+    });
+
+    timer = setTimeout(finish, QUIET_MS);
+    // A page that never stops mutating still owes us a snapshot.
+    const ceiling = setTimeout(finish, MAX_MS);
+  });
 }
 
 export const PROBE_SOURCES = {
@@ -257,5 +303,6 @@ export const PROBE_SOURCES = {
   chunks: `(${readChunkManifest.toString()})()`,
   links: `(${readLinks.toString()})()`,
   location: `(${readLocation.toString()})()`,
+  href: `(${readHref.toString()})()`,
   dom: `(${snapshotDom.toString()})()`,
 };

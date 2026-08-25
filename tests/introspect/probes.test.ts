@@ -196,7 +196,26 @@ test('reads the current pathname for navigation recording', () => {
   delete g.location;
 });
 
-test('snapshots the rendered DOM', () => {
-  g.document = { documentElement: { outerHTML: '<html><body>rendered</body></html>' } };
-  expect(run<string>(PROBE_SOURCES.dom)).toContain('rendered');
+test('snapshots the rendered DOM once mutations go quiet', async () => {
+  const element = { outerHTML: '<html><body>stale</body></html>' };
+  g.document = { documentElement: element };
+  g.MutationObserver = class {
+    constructor(private readonly cb: () => void) {}
+    observe() {
+      // One late mutation, as a router rendering the new route would produce.
+      setTimeout(() => {
+        element.outerHTML = '<html><body>rendered league</body></html>';
+        this.cb();
+      }, 20);
+    }
+    disconnect() {}
+  };
+
+  const html = await run<Promise<string>>(PROBE_SOURCES.dom);
+  expect(html).toContain('rendered league');
+  delete g.MutationObserver;
+});
+
+test('the DOM probe resolves rather than hanging without a document', async () => {
+  expect(await run<Promise<string>>(PROBE_SOURCES.dom)).toBe('');
 });

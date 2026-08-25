@@ -22,6 +22,8 @@ export interface RuntimeSnapshot {
 export interface NavigationRecord {
   navigationId: string;
   path: string;
+  /** Origin at the moment of navigation; authoritative on a full page load. */
+  origin: string | null;
   /** True for a client-side route change, where no Document was ever served. */
   sameDocument: boolean;
   /** Rendered DOM at the moment the navigation settled. */
@@ -129,25 +131,36 @@ export class CdpSession {
         // we ask the page. Either way the path must be recorded — a navigation
         // whose URL was discarded is a page nobody can tell was ever visited.
         let path = '/';
+        let origin: string | null = null;
         if (sameDocument && typeof params.url === 'string') {
           try {
-            path = new URL(params.url).pathname;
+            const url = new URL(params.url);
+            path = url.pathname;
+            origin = url.origin;
           } catch {
             path = String(params.url);
           }
         } else {
-          path = await this.evaluate<string>(PROBE_SOURCES.location, '/');
+          const href = await this.evaluate<string>(PROBE_SOURCES.href, '');
+          try {
+            const url = new URL(href);
+            path = url.pathname;
+            origin = url.origin;
+          } catch {
+            path = '/';
+          }
         }
 
         // A client-rendered route was never served as a document, so the
         // rendered DOM is the only evidence that page existed.
         const html = sameDocument
-          ? await this.evaluate<string>(PROBE_SOURCES.dom, '')
+          ? await this.evaluate<string>(PROBE_SOURCES.dom, '', true)
           : null;
 
         await this.sink.onNavigation({
           navigationId,
           path,
+          origin,
           sameDocument,
           html: html && html.length > 0 ? html : null,
         });
@@ -217,12 +230,17 @@ export class CdpSession {
     }
   }
 
-  private async evaluate<T>(expression: string, fallback: T): Promise<T> {
+  private async evaluate<T>(
+    expression: string,
+    fallback: T,
+    awaitPromise = false
+  ): Promise<T> {
     if (this.tabId === null) return fallback;
     try {
       const result = (await this.adapter.sendCommand(this.tabId, 'Runtime.evaluate', {
         expression,
         returnByValue: true,
+        awaitPromise,
       })) as { result?: { value?: T } } | undefined;
       return result?.result?.value ?? fallback;
     } catch {

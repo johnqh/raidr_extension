@@ -145,6 +145,7 @@ test('a navigation is recorded and marks its route visited', async () => {
   await state.ingestNavigation({
     navigationId: 'nav1',
     path: '/league',
+    origin: null,
     sameDocument: true,
     html: null,
   });
@@ -163,6 +164,7 @@ test('a client-rendered navigation stores the rendered DOM', async () => {
   await state.ingestNavigation({
     navigationId: 'nav1',
     path: '/league',
+    origin: null,
     sameDocument: true,
     html: '<html><body>league</body></html>',
   });
@@ -178,6 +180,7 @@ test('links a page offers become known routes, so coverage is not falsely 100%',
   await state.ingestNavigation({
     navigationId: 'nav1',
     path: '/',
+    origin: null,
     sameDocument: false,
     html: null,
   });
@@ -198,8 +201,68 @@ test('links a page offers become known routes, so coverage is not falsely 100%',
 test('revisiting a route does not double-count it', async () => {
   const state = session();
   for (const navigationId of ['nav1', 'nav2']) {
-    await state.ingestNavigation({ navigationId, path: '/league', sameDocument: true, html: null });
+    await state.ingestNavigation({ navigationId, path: '/league', origin: null, sameDocument: true, html: null });
   }
   expect(state.coverage().routes.total).toBe(1);
   expect(state.bundleInput().runtime.navigations).toHaveLength(2);
+});
+
+test('a full page load corrects the origin seeded at session start', async () => {
+  // Regression: capture started on one site and navigated to another produced a
+  // bundle of ivan.icu whose manifest — and filename — said github.com.
+  const state = session();
+  expect(state.manifest()!.origin).toBe('https://example.com');
+
+  await state.ingestNavigation({
+    navigationId: 'nav1',
+    path: '/',
+    origin: 'https://www.ivan.icu',
+    sameDocument: false,
+    html: null,
+  });
+  expect(state.manifest()!.origin).toBe('https://www.ivan.icu');
+});
+
+test('a client-side navigation does not rewrite the origin', async () => {
+  const state = session();
+  await state.ingestNavigation({
+    navigationId: 'nav1',
+    path: '/',
+    origin: 'https://www.ivan.icu',
+    sameDocument: false,
+    html: null,
+  });
+  await state.ingestNavigation({
+    navigationId: 'nav2',
+    path: '/league',
+    origin: 'https://cdn.other.com',
+    sameDocument: true,
+    html: null,
+  });
+  expect(state.manifest()!.origin).toBe('https://www.ivan.icu');
+});
+
+test('a later snapshot of the same route replaces an earlier one', async () => {
+  // Routers commonly touch history twice per click. The first navigation fires
+  // before the new route renders, so its DOM still shows the previous page —
+  // keeping the first snapshot names every page after the one before it.
+  const state = session();
+  await state.ingestNavigation({
+    navigationId: 'nav1',
+    path: '/league',
+    origin: null,
+    sameDocument: true,
+    html: '<html><body>STALE previous page</body></html>',
+  });
+  await state.ingestNavigation({
+    navigationId: 'nav2',
+    path: '/league',
+    origin: null,
+    sameDocument: true,
+    html: '<html><body>RENDERED league</body></html>',
+  });
+
+  const hash = state.bundleInput().snapshots!['/league']!;
+  const stored = await state.bundleInput().store.get(hash);
+  expect(new TextDecoder().decode(stored!)).toContain('RENDERED league');
 });

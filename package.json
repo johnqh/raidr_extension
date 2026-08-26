@@ -1,6 +1,6 @@
 {
   "name": "xray_extension",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "xray — capture a web app's traffic and runtime for reconstruction",
   "private": true,
   "type": "module",
@@ -16,7 +16,7 @@
     "@radix-ui/react-slot": "^1.2.4",
     "@sudobility/components": "^5.3.11",
     "@sudobility/design": "^1.1.48",
-    "@sudobility/xray_lib": "^0.0.1",
+    "@sudobility/xray_lib": "^0.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "fflate": "^0.8.2",

@@ -10,7 +10,7 @@
         "@radix-ui/react-slot": "^1.2.4",
         "@sudobility/components": "^5.3.11",
         "@sudobility/design": "^1.1.48",
-        "@sudobility/xray_lib": "^0.0.1",
+        "@sudobility/xray_lib": "^0.0.2",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "fflate": "^0.8.2",
@@ -277,7 +277,7 @@
 
     "@sudobility/types": ["@sudobility/types@1.9.66", "", {}, "sha512-eD61iT72sB5+1zJJtM81+eB0YmqEQ0dc/qno0Sw3GYJHcpkbgwN6LYEmiyJzlqtcN9sG5nWuexH9NnBvLODrtw=="],
 
-    "@sudobility/xray_lib": ["@sudobility/xray_lib@0.0.1", "", { "dependencies": { "fflate": "^0.8.2" } }, "sha512-1AEktbKDfCfjulFi57Vufkl/tk1AJO/axV8RmI0DmyDJJV4na6d5c4a6kiNXdviWc2kUt1+yVNLEKeN1TmlhFA=="],
+    "@sudobility/xray_lib": ["@sudobility/xray_lib@0.0.2", "", { "dependencies": { "fflate": "^0.8.2" } }, "sha512-f5WtMC5Jo0muFPiqDpZidGOxPTpmq095dafkyDyvQQxPF9kDSmyCk3uRFWS91tkWOuxJiUze3zlIZCUtU7nytQ=="],
 
     "@types/babel__core": ["@types/babel__core@7.20.5", "", { "dependencies": { "@babel/parser": "^7.20.7", "@babel/types": "^7.20.7", "@types/babel__generator": "*", "@types/babel__template": "*", "@types/babel__traverse": "*" } }, "sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA=="],
 

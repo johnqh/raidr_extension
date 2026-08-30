@@ -7,17 +7,17 @@ import {
   type Gap,
   type RedactionEntry,
   type StackFingerprint,
-  type XrayManifest,
-} from '@sudobility/xray_lib';
+  type RaiderManifest,
+} from '@sudobility/raider_lib';
 import type { AssembledRequest } from '@/background/requestAssembler';
 import type { NavigationRecord, RuntimeSnapshot } from '@/background/cdpSession';
 import { CapturePipeline } from './capturePipeline';
 import type { ContentStore } from './store';
-import type { BundleInput } from '@sudobility/xray_lib';
+import type { BundleInput } from '@sudobility/raider_lib';
 
 export class SessionState {
   private pipeline: CapturePipeline;
-  private currentManifest: XrayManifest | null = null;
+  private currentManifest: RaiderManifest | null = null;
   private gaps: Gap[] = [];
   private frames: CapturedFrame[] = [];
   private knownChunks = new Set<string>();
@@ -181,7 +181,7 @@ export class SessionState {
     return { bytes, quotaPct };
   }
 
-  manifest(): XrayManifest | null {
+  manifest(): RaiderManifest | null {
     return this.currentManifest;
   }
 

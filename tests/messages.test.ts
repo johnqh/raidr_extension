@@ -1,17 +1,17 @@
 import { expect, test } from 'bun:test';
-import { isXrayMessage } from '../src/shared/messages';
+import { isRaiderMessage } from '../src/shared/messages';
 
 test('accepts a known message kind', () => {
-  expect(isXrayMessage({ kind: 'session/start', tabId: 7 })).toBe(true);
+  expect(isRaiderMessage({ kind: 'session/start', tabId: 7 })).toBe(true);
 });
 
 test('rejects an unknown kind', () => {
-  expect(isXrayMessage({ kind: 'nope' })).toBe(false);
+  expect(isRaiderMessage({ kind: 'nope' })).toBe(false);
 });
 
 test('rejects non-objects', () => {
-  expect(isXrayMessage(null)).toBe(false);
-  expect(isXrayMessage('session/start')).toBe(false);
+  expect(isRaiderMessage(null)).toBe(false);
+  expect(isRaiderMessage('session/start')).toBe(false);
 });
 
 test('every message kind the extension sends is recognised', () => {
@@ -36,7 +36,7 @@ test('every message kind the extension sends is recognised', () => {
     'export/start',
     'export/ready',
   ]) {
-    expect(isXrayMessage({ kind })).toBe(true);
+    expect(isRaiderMessage({ kind })).toBe(true);
   }
 });
 

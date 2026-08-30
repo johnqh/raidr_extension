@@ -6,7 +6,7 @@ import type { AssembledRequest } from '../../src/background/requestAssembler';
 
 function pipeline() {
   return new CapturePipeline(
-    new IdbContentStore(`xray-pipe-${Math.random()}`, indexedDB),
+    new IdbContentStore(`raider-pipe-${Math.random()}`, indexedDB),
     'test-salt'
   );
 }

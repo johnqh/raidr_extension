@@ -1,4 +1,4 @@
-import type { CapturedRequest, Gap } from '@sudobility/xray_lib';
+import type { CapturedRequest, Gap } from '@sudobility/raider_lib';
 
 export interface AssembledRequest
   extends Omit<CapturedRequest, 'requestBodyHash' | 'responseBodyHash'> {

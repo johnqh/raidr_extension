@@ -1,4 +1,4 @@
-import { isXrayMessage } from '@/shared/messages';
+import { isRaiderMessage } from '@/shared/messages';
 import { LiveChromeAdapter } from '@/adapters/ChromeAdapter';
 import { CdpSession, type CaptureSink } from './cdpSession';
 
@@ -22,7 +22,7 @@ interface PersistedSession {
   navigationCounter: number;
 }
 
-const SESSION_KEY = 'xray:session';
+const SESSION_KEY = 'raider:session';
 
 async function readPersisted(): Promise<PersistedSession | null> {
   const stored = await chrome.storage.session.get(SESSION_KEY);
@@ -150,7 +150,7 @@ async function startSession(tabId: number): Promise<void> {
   if (!/^https?:/i.test(url)) {
     notify({
       kind: 'session/error',
-      detail: 'xray can only capture http and https pages.',
+      detail: 'raider can only capture http and https pages.',
     });
     return;
   }
@@ -195,7 +195,7 @@ async function stopSession(): Promise<void> {
 }
 
 chrome.runtime.onMessage.addListener((message) => {
-  if (!isXrayMessage(message)) return;
+  if (!isRaiderMessage(message)) return;
 
   switch (message.kind) {
     case 'session/start':
@@ -218,6 +218,6 @@ chrome.runtime.onMessage.addListener((message) => {
 
 chrome.sidePanel
   .setPanelBehavior({ openPanelOnActionClick: true })
-  .catch((error: unknown) => console.error('[xray] side panel', error));
+  .catch((error: unknown) => console.error('[raider] side panel', error));
 
 void ensureOffscreen();

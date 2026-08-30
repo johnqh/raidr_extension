@@ -1,4 +1,4 @@
-import type { ContentStore } from '@sudobility/xray_lib';
+import type { ContentStore } from '@sudobility/raider_lib';
 import { sha256Hex } from './hash';
 
 const STORE_NAME = 'content';

@@ -1,5 +1,5 @@
 import { Badge, Card, CardContent, Progress } from '@sudobility/components';
-import type { CoverageReport } from '@sudobility/xray_lib';
+import type { CoverageReport } from '@sudobility/raider_lib';
 
 interface Props {
   report: CoverageReport;

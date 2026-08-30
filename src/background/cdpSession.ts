@@ -1,4 +1,4 @@
-import type { Gap, StackFingerprint } from '@sudobility/xray_lib';
+import type { Gap, StackFingerprint } from '@sudobility/raider_lib';
 import type { ChromeAdapter } from '@/adapters/ChromeAdapter';
 import { RequestAssembler, type AssembledRequest } from './requestAssembler';
 import { PROBE_SOURCES } from '@/introspect/probes';

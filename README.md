@@ -1,8 +1,8 @@
-# xray_extension
+# raider_extension
 
 A Chrome MV3 extension that captures a running web app — its network traffic,
 its JavaScript, its source maps, its rendered DOM — and exports it as an
-**xray bundle** for reconstruction.
+**raider bundle** for reconstruction.
 
 ## Install
 
@@ -38,7 +38,7 @@ PII are redacted on the way into the buffer, not on the way out. Identifiers are
 replaced with stable pseudonyms so a user id stays joinable across requests
 without being the real one. The side panel reports exactly what was redacted.
 
-The rules live in [`xray_lib`](https://github.com/johnqh/xray_lib), which the
+The rules live in [`raider_lib`](https://github.com/johnqh/raider_lib), which the
 extension imports — the same code path the CLI uses, so a bundle is redacted
 identically no matter who produced it.
 
@@ -61,14 +61,14 @@ bun run typecheck
 bun test           # no browser needed
 ```
 
-## The xray project
+## The raider project
 
 | Repository | Role |
 |---|---|
-| [`xray_lib`](https://github.com/johnqh/xray_lib) | Bundle format and pure analysis |
-| [`xray_extension`](https://github.com/johnqh/xray_extension) | Chrome MV3 extension that performs the capture — this repo |
-| [`xray_cli`](https://github.com/johnqh/xray_cli) | Reconstruction CLI and the agent skill |
-| [`xray_web`](https://github.com/johnqh/xray_web) | Landing site |
+| [`raider_lib`](https://github.com/johnqh/raider_lib) | Bundle format and pure analysis |
+| [`raider_extension`](https://github.com/johnqh/raider_extension) | Chrome MV3 extension that performs the capture — this repo |
+| [`raider_cli`](https://github.com/johnqh/raider_cli) | Reconstruction CLI and the agent skill |
+| [`raider_web`](https://github.com/johnqh/raider_web) | Landing site |
 
 ## License
 

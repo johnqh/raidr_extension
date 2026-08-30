@@ -3,7 +3,7 @@ import {
   redactRequest,
   type CapturedRequest,
   type RedactionEntry,
-} from '@sudobility/xray_lib';
+} from '@sudobility/raider_lib';
 import type { AssembledRequest } from '@/background/requestAssembler';
 import type { ContentStore } from './store';
 

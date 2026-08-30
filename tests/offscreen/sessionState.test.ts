@@ -6,7 +6,7 @@ import type { AssembledRequest } from '../../src/background/requestAssembler';
 
 function session() {
   const state = new SessionState(
-    new IdbContentStore(`xray-session-${Math.random()}`, indexedDB),
+    new IdbContentStore(`raider-session-${Math.random()}`, indexedDB),
     'salt'
   );
   state.begin('https://example.com', '2026-08-24T10:00:00.000Z', 's1');
@@ -38,7 +38,7 @@ test('begin creates a manifest', () => {
 
 test('manifest is null before begin', () => {
   const state = new SessionState(
-    new IdbContentStore(`xray-none-${Math.random()}`, indexedDB),
+    new IdbContentStore(`raider-none-${Math.random()}`, indexedDB),
     'salt'
   );
   expect(state.manifest()).toBeNull();

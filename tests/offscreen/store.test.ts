@@ -7,7 +7,7 @@ const encoder = new TextEncoder();
 let dbCounter = 0;
 function freshStore() {
   dbCounter += 1;
-  return new IdbContentStore(`xray-test-${dbCounter}`, indexedDB);
+  return new IdbContentStore(`raider-test-${dbCounter}`, indexedDB);
 }
 
 test('hashes bytes to stable lowercase hex', async () => {

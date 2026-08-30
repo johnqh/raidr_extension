@@ -1,5 +1,5 @@
 import { Badge, Card, CardContent, Checkbox } from '@sudobility/components';
-import type { RedactionEntry } from '@sudobility/xray_lib';
+import type { RedactionEntry } from '@sudobility/raider_lib';
 
 interface Props {
   entries: RedactionEntry[];
@@ -52,11 +52,11 @@ export function RedactionReport({ entries, acknowledged, onAcknowledge }: Props)
 
         <div className="mt-4 flex items-start gap-2">
           <Checkbox
-            id="xray-redaction-ack"
+            id="raider-redaction-ack"
             checked={acknowledged}
             onChange={onAcknowledge}
           />
-          <label htmlFor="xray-redaction-ack" className="text-xs leading-snug">
+          <label htmlFor="raider-redaction-ack" className="text-xs leading-snug">
             I have reviewed what will leave the browser
           </label>
         </div>

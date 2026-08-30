@@ -1,9 +1,9 @@
-import { isXrayMessage } from '@/shared/messages';
+import { isRaiderMessage } from '@/shared/messages';
 import { IdbContentStore } from './store';
 import { SessionState } from './sessionState';
-import { buildBundleFiles, zipBundle, bundleFilename } from '@sudobility/xray_lib';
+import { buildBundleFiles, zipBundle, bundleFilename } from '@sudobility/raider_lib';
 
-const store = new IdbContentStore('xray-capture', indexedDB);
+const store = new IdbContentStore('raider-capture', indexedDB);
 
 // The salt is generated per session and deliberately never persisted or
 // exported: it is what keeps short pseudonym hashes from being brute-forced
@@ -67,7 +67,7 @@ function broadcastNow(): void {
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (!isXrayMessage(message)) return;
+  if (!isRaiderMessage(message)) return;
 
   switch (message.kind) {
     case 'session/begin':

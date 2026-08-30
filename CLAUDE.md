@@ -1,14 +1,14 @@
-# CLAUDE.md — xray_extension
+# CLAUDE.md — raider_extension
 
 MV3 Chrome extension that captures a running web app's network traffic and
-runtime, and exports it as an xray bundle.
+runtime, and exports it as an raider bundle.
 
 ## Tech stack
 
 - Vite + `@crxjs/vite-plugin`, React 18, TypeScript, Bun
 - `@sudobility/components` + `@sudobility/design` for all panel UI
 - Tailwind driven by `createTailwindPreset()` from `@sudobility/design`
-- `@sudobility/xray_lib` for the bundle format, redaction, and coverage
+- `@sudobility/raider_lib` for the bundle format, redaction, and coverage
 
 ## Structure
 
@@ -53,7 +53,7 @@ bun test           # 98 tests, no browser needed
 
 ## Related projects
 
-- `xray_lib` — bundle format, redaction, coverage, analysis
-- `xray_cli` — reconstruction CLI and the agent skill
-- `xray_web` — landing page
+- `raider_lib` — bundle format, redaction, coverage, analysis
+- `raider_cli` — reconstruction CLI and the agent skill
+- `raider_web` — landing page
 - `testomniac_extension` — reference for the design-system setup

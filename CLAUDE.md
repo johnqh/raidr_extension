@@ -1,14 +1,14 @@
-# CLAUDE.md — raider_extension
+# CLAUDE.md — raidr_extension
 
 MV3 Chrome extension that captures a running web app's network traffic and
-runtime, and exports it as an raider bundle.
+runtime, and exports it as an raidr bundle.
 
 ## Tech stack
 
 - Vite + `@crxjs/vite-plugin`, React 18, TypeScript, Bun
 - `@sudobility/components` + `@sudobility/design` for all panel UI
 - Tailwind driven by `createTailwindPreset()` from `@sudobility/design`
-- `@sudobility/raider_lib` for the bundle format, redaction, and coverage
+- `@sudobility/raidr_lib` for the bundle format, redaction, and coverage
 
 ## Structure
 
@@ -24,7 +24,7 @@ src/
 ## Commands
 
 ```bash
-bun run dev        # vite, HMR on 7176
+bun run dev        # vite, HMR on 7178
 bun run build      # tsc && vite build → dist/ (load unpacked)
 bun run typecheck
 bun test           # 98 tests, no browser needed
@@ -53,7 +53,7 @@ bun test           # 98 tests, no browser needed
 
 ## Related projects
 
-- `raider_lib` — bundle format, redaction, coverage, analysis
-- `raider_cli` — reconstruction CLI and the agent skill
-- `raider_web` — landing page
+- `raidr_lib` — bundle format, redaction, coverage, analysis
+- `raidr_cli` — reconstruction CLI and the agent skill
+- `raidr_web` — landing page
 - `testomniac_extension` — reference for the design-system setup

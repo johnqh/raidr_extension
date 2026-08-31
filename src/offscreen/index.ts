@@ -1,9 +1,9 @@
-import { isRaiderMessage } from '@/shared/messages';
+import { isRaidrMessage } from '@/shared/messages';
 import { IdbContentStore } from './store';
 import { SessionState } from './sessionState';
-import { buildBundleFiles, zipBundle, bundleFilename } from '@sudobility/raider_lib';
+import { buildBundleFiles, zipBundle, bundleFilename } from '@sudobility/raidr_lib';
 
-const store = new IdbContentStore('raider-capture', indexedDB);
+const store = new IdbContentStore('raidr-capture', indexedDB);
 
 // The salt is generated per session and deliberately never persisted or
 // exported: it is what keeps short pseudonym hashes from being brute-forced
@@ -67,7 +67,7 @@ function broadcastNow(): void {
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (!isRaiderMessage(message)) return;
+  if (!isRaidrMessage(message)) return;
 
   switch (message.kind) {
     case 'session/begin':

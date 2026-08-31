@@ -9,7 +9,7 @@ Parameters
 
 Licensor: Sudobility Inc.
 
-Licensed Work: raider. The Licensed Work is (C) 2026 Sudobility Inc.
+Licensed Work: raidr. The Licensed Work is (C) 2026 Sudobility Inc.
 
 Additional Use Grant: None
 

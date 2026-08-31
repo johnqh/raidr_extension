@@ -1,17 +1,17 @@
 import { expect, test } from 'bun:test';
-import { isRaiderMessage } from '../src/shared/messages';
+import { isRaidrMessage } from '../src/shared/messages';
 
 test('accepts a known message kind', () => {
-  expect(isRaiderMessage({ kind: 'session/start', tabId: 7 })).toBe(true);
+  expect(isRaidrMessage({ kind: 'session/start', tabId: 7 })).toBe(true);
 });
 
 test('rejects an unknown kind', () => {
-  expect(isRaiderMessage({ kind: 'nope' })).toBe(false);
+  expect(isRaidrMessage({ kind: 'nope' })).toBe(false);
 });
 
 test('rejects non-objects', () => {
-  expect(isRaiderMessage(null)).toBe(false);
-  expect(isRaiderMessage('session/start')).toBe(false);
+  expect(isRaidrMessage(null)).toBe(false);
+  expect(isRaidrMessage('session/start')).toBe(false);
 });
 
 test('every message kind the extension sends is recognised', () => {
@@ -36,7 +36,7 @@ test('every message kind the extension sends is recognised', () => {
     'export/start',
     'export/ready',
   ]) {
-    expect(isRaiderMessage({ kind })).toBe(true);
+    expect(isRaidrMessage({ kind })).toBe(true);
   }
 });
 

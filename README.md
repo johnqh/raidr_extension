@@ -1,8 +1,8 @@
-# raider_extension
+# raidr_extension
 
 A Chrome MV3 extension that captures a running web app — its network traffic,
 its JavaScript, its source maps, its rendered DOM — and exports it as an
-**raider bundle** for reconstruction.
+**raidr bundle** for reconstruction.
 
 ## Install
 
@@ -38,7 +38,7 @@ PII are redacted on the way into the buffer, not on the way out. Identifiers are
 replaced with stable pseudonyms so a user id stays joinable across requests
 without being the real one. The side panel reports exactly what was redacted.
 
-The rules live in [`raider_lib`](https://github.com/johnqh/raider_lib), which the
+The rules live in [`raidr_lib`](https://github.com/johnqh/raidr_lib), which the
 extension imports — the same code path the CLI uses, so a bundle is redacted
 identically no matter who produced it.
 
@@ -56,19 +56,19 @@ src/
 ## Development
 
 ```bash
-bun run dev        # vite, HMR on 7176
+bun run dev        # vite, HMR on 7178
 bun run typecheck
 bun test           # no browser needed
 ```
 
-## The raider project
+## The raidr project
 
 | Repository | Role |
 |---|---|
-| [`raider_lib`](https://github.com/johnqh/raider_lib) | Bundle format and pure analysis |
-| [`raider_extension`](https://github.com/johnqh/raider_extension) | Chrome MV3 extension that performs the capture — this repo |
-| [`raider_cli`](https://github.com/johnqh/raider_cli) | Reconstruction CLI and the agent skill |
-| [`raider_web`](https://github.com/johnqh/raider_web) | Landing site |
+| [`raidr_lib`](https://github.com/johnqh/raidr_lib) | Bundle format and pure analysis |
+| [`raidr_extension`](https://github.com/johnqh/raidr_extension) | Chrome MV3 extension that performs the capture — this repo |
+| [`raidr_cli`](https://github.com/johnqh/raidr_cli) | Reconstruction CLI and the agent skill |
+| [`raidr_web`](https://github.com/johnqh/raidr_web) | Landing site |
 
 ## License
 

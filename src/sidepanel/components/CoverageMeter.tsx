@@ -1,5 +1,5 @@
 import { Badge, Card, CardContent, Progress } from '@sudobility/components';
-import type { CoverageReport } from '@sudobility/raider_lib';
+import type { CoverageReport } from '@sudobility/raidr_lib';
 
 interface Props {
   report: CoverageReport;

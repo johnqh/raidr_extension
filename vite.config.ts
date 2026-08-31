@@ -4,7 +4,7 @@ import { crx } from '@crxjs/vite-plugin';
 import path from 'path';
 import manifest from './src/manifest.json';
 
-const CRX_PORT = 7176;
+const CRX_PORT = 7178;
 
 export default defineConfig(({ mode }) => {
   process.env.PORT = String(CRX_PORT);

@@ -1,4 +1,4 @@
-import type { Gap, RaiderManifest } from '@sudobility/raider_lib';
+import type { Gap, RaidrManifest } from '@sudobility/raidr_lib';
 
 export interface SessionStats {
   requests: number;
@@ -9,7 +9,7 @@ export interface SessionStats {
   quotaPct: number | null;
 }
 
-export type RaiderMessage =
+export type RaidrMessage =
   | { kind: 'session/start'; tabId: number }
   | { kind: 'session/stop' }
   | { kind: 'session/stats'; stats: SessionStats }
@@ -18,11 +18,11 @@ export type RaiderMessage =
   | { kind: 'capture/gap'; gap: Gap }
   | { kind: 'export/start' }
   | { kind: 'export/ready'; blobUrl: string; filename: string }
-  | { kind: 'export/manifest'; manifest: RaiderManifest }
-  | { kind: 'session/coverage'; report: import('@sudobility/raider_lib').CoverageReport }
+  | { kind: 'export/manifest'; manifest: RaidrManifest }
+  | { kind: 'session/coverage'; report: import('@sudobility/raidr_lib').CoverageReport }
   | { kind: 'capture/runtime'; snapshot: import('@/background/cdpSession').RuntimeSnapshot }
   | { kind: 'session/begin'; origin: string }
-  | { kind: 'session/redaction'; entries: import('@sudobility/raider_lib').RedactionEntry[] }
+  | { kind: 'session/redaction'; entries: import('@sudobility/raidr_lib').RedactionEntry[] }
   | { kind: 'capture/sourcemap'; scriptUrl: string; text: string }
   | { kind: 'capture/navigation'; navigation: import('@/background/cdpSession').NavigationRecord }
   | { kind: 'session/started'; tabId: number }
@@ -52,7 +52,7 @@ const KINDS: ReadonlySet<string> = new Set([
   'session/error',
 ]);
 
-export function isRaiderMessage(value: unknown): value is RaiderMessage {
+export function isRaidrMessage(value: unknown): value is RaidrMessage {
   if (typeof value !== 'object' || value === null) return false;
   const kind = (value as { kind?: unknown }).kind;
   return typeof kind === 'string' && KINDS.has(kind);

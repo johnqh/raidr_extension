@@ -1,4 +1,4 @@
-import type { StackFingerprint } from '@sudobility/raider_lib';
+import type { StackFingerprint } from '@sudobility/raidr_lib';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 

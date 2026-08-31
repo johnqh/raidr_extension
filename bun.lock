@@ -3,14 +3,14 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "raider_extension",
+      "name": "raidr_extension",
       "dependencies": {
         "@heroicons/react": "^2.2.0",
         "@radix-ui/react-label": "^2.1.8",
         "@radix-ui/react-slot": "^1.2.4",
-        "@sudobility/components": "^5.3.11",
-        "@sudobility/design": "^1.1.48",
-        "@sudobility/raider_lib": "^0.0.2",
+        "@sudobility/components": "^5.3.13",
+        "@sudobility/design": "^1.1.49",
+        "@sudobility/raidr_lib": "^0.0.3",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "fflate": "^0.8.2",
@@ -275,7 +275,7 @@
 
     "@sudobility/design": ["@sudobility/design@1.1.49", "", { "peerDependencies": { "clsx": ">=2.0.0", "tailwind-merge": ">=2.0.0" } }, "sha512-bafhoyhAGoqMglNpRVZF+MOHFC6VeEFkFiUB9zXY1pu1H4OtN6BgFDsw04VLPDK5slzPLCs7jjSm0ZNrt9qUjg=="],
 
-    "@sudobility/raider_lib": ["@sudobility/raider_lib@0.0.2", "", { "dependencies": { "fflate": "^0.8.2" } }, "sha512-f6I+Bq9lf+TSw4id8rpXWAYs9COCYnwgKWxsN6oBinZ1bdRQQJ9Bzz5ffmSCKzosG9PGackUAYt5+WisIMLCIA=="],
+    "@sudobility/raidr_lib": ["@sudobility/raidr_lib@0.0.3", "", { "dependencies": { "fflate": "^0.8.2" } }, "sha512-K21HA2I1l+jyM6Z6cPd6enc/yU3KX1fywEdPGI1eYOcPqF6bXfQkFchC1DWNvk83xP5solTSpLa2yK/l5eTTXA=="],
 
     "@sudobility/types": ["@sudobility/types@1.9.67", "", {}, "sha512-d+jk4L9i8VNvOnCJW/craqiiUTPH5aRq4KYe/QBrBU3mCcTfoYjgzzXopVQRcthiZ5dwQAEpdqCTQ0gAWRN6Ww=="],
 

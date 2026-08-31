@@ -1,7 +1,7 @@
 {
-  "name": "raider_extension",
-  "version": "0.0.2",
-  "description": "raider — capture a web app's traffic and runtime for reconstruction",
+  "name": "raidr_extension",
+  "version": "0.0.3",
+  "description": "raidr — capture a web app's traffic and runtime for reconstruction",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,9 +14,9 @@
     "@heroicons/react": "^2.2.0",
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-slot": "^1.2.4",
-    "@sudobility/components": "^5.3.11",
-    "@sudobility/design": "^1.1.48",
-    "@sudobility/raider_lib": "^0.0.2",
+    "@sudobility/components": "^5.3.13",
+    "@sudobility/design": "^1.1.49",
+    "@sudobility/raidr_lib": "^0.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "fflate": "^0.8.2",
@@ -42,7 +42,7 @@
   "author": "Sudobility Inc.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/johnqh/raider_extension.git"
+    "url": "git+https://github.com/johnqh/raidr_extension.git"
   },
-  "homepage": "https://github.com/johnqh/raider_extension#readme"
+  "homepage": "https://github.com/johnqh/raidr_extension#readme"
 }

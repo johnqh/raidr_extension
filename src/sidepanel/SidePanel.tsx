@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Badge, Button } from '@sudobility/components';
-import type { CoverageReport, RedactionEntry } from '@sudobility/raider_lib';
-import { isRaiderMessage, type SessionStats } from '@/shared/messages';
+import type { CoverageReport, RedactionEntry } from '@sudobility/raidr_lib';
+import { isRaidrMessage, type SessionStats } from '@/shared/messages';
 import { CoverageMeter } from './components/CoverageMeter';
 import { RedactionReport } from './components/RedactionReport';
 
@@ -27,7 +27,7 @@ export function SidePanel() {
 
   useEffect(() => {
     const listener = (message: unknown) => {
-      if (!isRaiderMessage(message)) return;
+      if (!isRaidrMessage(message)) return;
 
       switch (message.kind) {
         case 'session/coverage':
@@ -83,7 +83,7 @@ export function SidePanel() {
     <main className="min-h-screen bg-background p-4 text-foreground">
       <header className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h1 className="text-base font-semibold">raider</h1>
+          <h1 className="text-base font-semibold">raidr</h1>
           {capturing && (
             <Badge variant="danger" size="sm" dot pill>
               Recording

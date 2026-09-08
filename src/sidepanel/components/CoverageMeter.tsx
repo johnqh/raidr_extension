@@ -1,4 +1,4 @@
-import { Badge, Card, CardContent, Progress } from '@sudobility/components';
+import { Card, CardContent, Progress } from '@sudobility/components';
 import type { CoverageReport } from '@sudobility/raidr_lib';
 
 interface Props {
@@ -62,12 +62,13 @@ export function CoverageMeter({ report, links }: Props) {
   return (
     <Card className="border border-border">
       <CardContent className="pt-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Coverage</h2>
-          <Badge variant={report.complete ? 'success' : 'warning'} size="sm" pill>
-            {report.complete ? 'Complete' : 'Incomplete'}
-          </Badge>
-        </div>
+        {/*
+          No completion badge. Coverage is a map of what was reached, not a bar
+          to clear: a bundle can be everything reconstruction needs while most
+          routes went unvisited, and labelling that "Incomplete" told the
+          operator to keep clicking for no benefit.
+        */}
+        <h2 className="mb-3 text-sm font-semibold">Coverage</h2>
 
         <Track
           label="Chunks"

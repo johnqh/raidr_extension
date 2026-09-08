@@ -159,17 +159,65 @@ test('detects webpack from a webpackChunk global', () => {
   delete g.webpackChunkmyapp;
 });
 
-test('falls back to document-referenced chunks when no deps map exists', () => {
-  g.document = {
+function documentWith(scripts: string[], links: string[] = []) {
+  const nodes = (values: string[]) => values.map((value) => ({ getAttribute: () => value }));
+  return {
+    // Matched on the element, not a substring: the link selector legitimately
+    // contains the word "script" in `as="script"`.
     querySelectorAll: (selector: string) =>
-      selector.includes('script')
-        ? [{ getAttribute: () => '/assets/index-B6zGc9AK.js' }]
-        : [{ getAttribute: () => '/assets/Users-CqHBajCK.js' }],
+      selector.trim().startsWith('link') ? nodes(links) : nodes(scripts),
     querySelector: () => null,
   };
+}
+
+test('falls back to document-referenced chunks when no deps map exists', () => {
+  g.document = documentWith(['/assets/index-B6zGc9AK.js'], ['/assets/Users-CqHBajCK.js']);
   const chunks = run<string[]>(PROBE_SOURCES.chunks);
   expect(chunks).toContain('assets/index-B6zGc9AK.js');
   expect(chunks).toContain('assets/Users-CqHBajCK.js');
+});
+
+/**
+ * Only Vite names its output directory `assets`, and only an ES-module build
+ * uses `type=module` and `modulepreload`. Requiring both found nothing at all
+ * on Next.js, webpack and CRA apps, which is most of the web.
+ */
+test('finds classic script chunks outside an assets directory', () => {
+  g.document = documentWith([
+    '/_next/static/chunks/framework-76ad44d6.js',
+    '/static/js/main.8f2a1c.chunk.js',
+  ]);
+  expect(run<string[]>(PROBE_SOURCES.chunks)).toEqual([
+    '_next/static/chunks/framework-76ad44d6.js',
+    'static/js/main.8f2a1c.chunk.js',
+  ]);
+});
+
+/** An app's chunks routinely live on a CDN under a different origin. */
+test('finds chunks served from another origin', () => {
+  g.location = { origin: 'https://www.reddit.com' };
+  g.document = documentWith(['https://www.redditstatic.com/shreddit/en-US/Governor.CMHqDzr0.js']);
+  expect(run<string[]>(PROBE_SOURCES.chunks)).toEqual([
+    'shreddit/en-US/Governor.CMHqDzr0.js',
+  ]);
+});
+
+test('ignores script references that are not javascript files', () => {
+  g.document = documentWith([
+    'https://www.googletagmanager.com/gtag/js?id=G-B1E83PJ3RT',
+    '/app.js',
+  ]);
+  expect(run<string[]>(PROBE_SOURCES.chunks)).toEqual(['app.js']);
+});
+
+test('keeps a chunk once when the document references it twice', () => {
+  g.document = documentWith(['/static/js/main.js'], ['/static/js/main.js']);
+  expect(run<string[]>(PROBE_SOURCES.chunks)).toEqual(['static/js/main.js']);
+});
+
+test('ignores a query string when deciding a reference is javascript', () => {
+  g.document = documentWith(['/static/js/main.js?v=3']);
+  expect(run<string[]>(PROBE_SOURCES.chunks)).toEqual(['static/js/main.js']);
 });
 
 test('collects the internal links a page offers', () => {

@@ -95,6 +95,13 @@ export class CdpSession {
     await this.adapter.sendCommand(tabId, 'Page.enable');
     await this.adapter.sendCommand(tabId, 'Debugger.enable');
     await this.adapter.sendCommand(tabId, 'Runtime.enable');
+
+    // Capture is started on a page the operator already has open, so its load
+    // event fired long before we attached. Introspecting only from the
+    // navigation handler means a session where nothing navigates never learns
+    // the chunk manifest or the route table at all, and the coverage meter
+    // reports "0 / 0" chunks for its whole life.
+    await this.introspect();
   }
 
   async stop(): Promise<void> {

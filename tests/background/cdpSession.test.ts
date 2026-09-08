@@ -1,6 +1,10 @@
 import { expect, test } from 'bun:test';
 import { FakeChromeAdapter } from '../support/FakeChromeAdapter';
-import { CdpSession, type CaptureSink } from '../../src/background/cdpSession';
+import {
+  CdpSession,
+  type CaptureSink,
+  type RuntimeSnapshot,
+} from '../../src/background/cdpSession';
 import type { FakeChromeAdapter as Fake } from '../support/FakeChromeAdapter';
 
 /** The service worker subscribes at top level and forwards; tests do the same. */
@@ -15,6 +19,7 @@ function collectingSink() {
   const gaps: Gap[] = [];
   const sourceMaps: Array<{ scriptUrl: string; text: string }> = [];
   const navigations: Array<{ path: string; sameDocument: boolean; html: string | null }> = [];
+  const runtimes: RuntimeSnapshot[] = [];
   const sink: CaptureSink = {
     onSourceMap: async (scriptUrl, _mapUrl, text) => {
       sourceMaps.push({ scriptUrl, text });
@@ -28,9 +33,11 @@ function collectingSink() {
     onGap: async (gap) => {
       gaps.push(gap);
     },
-    onRuntime: async () => {},
+    onRuntime: async (snapshot) => {
+      runtimes.push(snapshot);
+    },
   };
-  return { sink, requests, gaps, sourceMaps, navigations };
+  return { sink, requests, gaps, sourceMaps, navigations, runtimes };
 }
 
 test('enables the CDP domains capture depends on', async () => {
@@ -373,4 +380,27 @@ test('a resumed session keeps counting navigations rather than restarting at 1',
 
   expect(session.navigationCount()).toBe(8);
   expect(navigations[0]!.path).toBe('/league');
+});
+
+/**
+ * Capture is started on a page that is already open, so its load event fired
+ * long before we attached and no further Page event is guaranteed to arrive.
+ * Waiting for one to introspect leaves the coverage meter reporting "0 / 0"
+ * chunks for the whole session.
+ */
+test('introspects the page as soon as capture starts', async () => {
+  const fake = new FakeChromeAdapter();
+  const { sink, runtimes } = collectingSink();
+  fake.respondWith('Runtime.evaluate', (params) => {
+    const expression = String(params.expression ?? '');
+    if (expression.includes('modulepreload')) {
+      return { result: { value: ['assets/index-B6zGc9AK.js'] } };
+    }
+    return { result: { value: [] } };
+  });
+
+  await wire(fake, new CdpSession(fake, sink)).start(1);
+
+  expect(runtimes.length).toBeGreaterThan(0);
+  expect(runtimes[0]!.chunks).toEqual(['assets/index-B6zGc9AK.js']);
 });

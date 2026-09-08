@@ -73,15 +73,18 @@ test('reads the webpack chunk manifest from the url helper', () => {
   ]);
 });
 
-test('reads the vite chunk manifest from viteFileDeps', () => {
+/**
+ * Vite's dep list is a `const` inside a module chunk, so it is never on the
+ * page's global scope and this probe cannot read it however it is shaped. The
+ * document is all there is; the rest is recovered from the captured script by
+ * `viteChunksFromSource`.
+ */
+test('ignores a vite deps helper, which never reaches the global scope', () => {
   const mapDeps = (() => []) as unknown as Record<string, unknown>;
-  mapDeps.viteFileDeps = ['assets/About-a1b2.js', 'assets/Admin-c3d4.js'];
+  mapDeps.f = ['assets/About-a1b2.js', 'assets/Admin-c3d4.js'];
   g.__vite__mapDeps = mapDeps;
 
-  expect(run<string[]>(PROBE_SOURCES.chunks)).toEqual([
-    'assets/About-a1b2.js',
-    'assets/Admin-c3d4.js',
-  ]);
+  expect(run<string[]>(PROBE_SOURCES.chunks)).toEqual([]);
 });
 
 test('returns an empty chunk list when no bundler is detected', () => {

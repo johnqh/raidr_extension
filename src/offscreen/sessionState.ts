@@ -12,6 +12,7 @@ import {
 import type { AssembledRequest } from '@/background/requestAssembler';
 import type { NavigationRecord, RuntimeSnapshot } from '@/background/cdpSession';
 import { CapturePipeline } from './capturePipeline';
+import { viteChunksFromSource } from './viteManifest';
 import type { ContentStore } from './store';
 import type { BundleInput } from '@sudobility/raidr_lib';
 
@@ -45,7 +46,27 @@ export class SessionState {
     body: string | null
   ): Promise<void> {
     await this.pipeline.ingest(assembled, body);
+    this.absorbChunkManifest(assembled, body);
     this.refreshCounts();
+  }
+
+  /**
+   * A captured script may carry the app's own chunk manifest. For Vite it is
+   * the only place the extension can learn about the lazy route chunks the
+   * operator never visited — the page probe sees just the entry and its
+   * modulepreloads, so without this the meter reports a session complete while
+   * most of the app was never fetched.
+   */
+  private absorbChunkManifest(
+    assembled: AssembledRequest,
+    body: string | null
+  ): void {
+    if (!body) return;
+    const isScript =
+      assembled.resourceType === 'Script' ||
+      (assembled.mimeType?.includes('javascript') ?? false);
+    if (!isScript) return;
+    for (const chunk of viteChunksFromSource(body)) this.knownChunks.add(chunk);
   }
 
   ingestGap(gap: Gap): void {

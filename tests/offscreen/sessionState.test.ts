@@ -266,3 +266,36 @@ test('a later snapshot of the same route replaces an earlier one', async () => {
   const stored = await state.bundleInput().store.get(hash);
   expect(new TextDecoder().decode(stored!)).toContain('RENDERED league');
 });
+
+/**
+ * The lazy route chunks are the whole point of the meter, and no page probe
+ * can see them: Vite's dep list never reaches the page's global scope.
+ */
+test('a captured vite chunk teaches the session about chunks never loaded', async () => {
+  const state = session();
+  const script: AssembledRequest = {
+    ...assembled('https://example.com/assets/App-xorPPbGf.js', 'r9'),
+    resourceType: 'Script',
+    mimeType: 'text/javascript',
+  };
+  await state.ingestRequest(
+    script,
+    'const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=' +
+      '["assets/App-xorPPbGf.js","assets/Admin-c3d4.js"])))=>i.map(i=>d[i]);'
+  );
+
+  const report = state.coverage();
+  expect(report.chunks.known).toBe(2);
+  // Only the chunk actually requested counts as loaded.
+  expect(report.chunks.loaded).toBe(1);
+  expect(report.chunks.missing).toEqual(['assets/Admin-c3d4.js']);
+});
+
+test('a non-script response is not scanned for a chunk manifest', async () => {
+  const state = session();
+  await state.ingestRequest(
+    assembled('https://example.com/api/config'),
+    '{"note":"__vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=[\\"assets/x.js\\"])))"}'
+  );
+  expect(state.coverage().chunks.known).toBe(0);
+});

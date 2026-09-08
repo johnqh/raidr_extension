@@ -26,7 +26,12 @@ function Track({
   missingLabel,
 }: {
   label: string;
-  pct: number;
+  /**
+   * Omitted when there is no honest denominator to measure against, in which
+   * case no bar is drawn — a progress bar with an invented total reads as
+   * certainty the capture does not have.
+   */
+  pct?: number;
   detail: string;
   missing: string[];
   missingLabel: string;
@@ -38,7 +43,7 @@ function Track({
         <span className="font-mono text-xs text-muted-foreground">{detail}</span>
       </div>
 
-      <Progress value={pct} variant={toneFor(pct)} size="sm" />
+      {pct !== undefined && <Progress value={pct} variant={toneFor(pct)} size="sm" />}
 
       {missing.length > 0 && (
         <details className="mt-2">
@@ -70,12 +75,17 @@ export function CoverageMeter({ report, links }: Props) {
         */}
         <h2 className="mb-3 text-sm font-semibold">Coverage</h2>
 
+        {/*
+          A count, not a ratio. The denominator would have to be every chunk the
+          app has, and nothing here can know that: a lazy chunk the session
+          never discovered is absent from both sides of the fraction, so "13/13"
+          and "13/105" were the same capture described two ways.
+        */}
         <Track
-          label="Chunks"
-          pct={report.chunks.pct}
-          detail={`${report.chunks.loaded} / ${report.chunks.known}`}
+          label="Chunks captured"
+          detail={String(report.chunks.loaded)}
           missing={report.chunks.missing}
-          missingLabel="not loaded"
+          missingLabel="referenced but not captured"
         />
         <Track
           label="Routes"

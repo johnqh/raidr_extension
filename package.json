@@ -1,6 +1,6 @@
 {
   "name": "raidr_extension",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "raidr — capture a web app's traffic and runtime for reconstruction",
   "private": true,
   "type": "module",
@@ -16,7 +16,7 @@
     "@radix-ui/react-slot": "^1.2.4",
     "@sudobility/components": "^5.3.17",
     "@sudobility/design": "^1.1.52",
-    "@sudobility/raidr_lib": "^0.0.5",
+    "@sudobility/raidr_lib": "^0.0.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "fflate": "^0.8.2",

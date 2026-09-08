@@ -13,6 +13,7 @@ import type { AssembledRequest } from '@/background/requestAssembler';
 import type { NavigationRecord, RuntimeSnapshot } from '@/background/cdpSession';
 import { CapturePipeline } from './capturePipeline';
 import { viteChunksFromSource } from './viteManifest';
+import { matchesRoutePattern } from './routeMatch';
 import type { ContentStore } from './store';
 import type { BundleInput } from '@sudobility/raidr_lib';
 
@@ -22,7 +23,11 @@ export class SessionState {
   private gaps: Gap[] = [];
   private frames: CapturedFrame[] = [];
   private knownChunks = new Set<string>();
-  private knownRoutes = new Set<string>();
+  /** Route patterns the app's own router declares, e.g. `/users/:id`. */
+  private declaredRoutes = new Set<string>();
+  /** Internal links the pages offer. Discovered, not required. */
+  private discoveredLinks = new Set<string>();
+  /** Concrete paths the operator actually reached. */
   private visitedRoutes = new Set<string>();
   private framework: StackFingerprint | null = null;
   private sourceMaps = new Map<string, string>();
@@ -96,7 +101,6 @@ export class SessionState {
         sameDocument: navigation.sameDocument,
       });
     }
-    this.knownRoutes.add(navigation.path);
     this.markVisited(navigation.path);
 
     // A client-rendered route was never served as a document; the rendered DOM
@@ -112,11 +116,12 @@ export class SessionState {
 
   ingestRuntime(snapshot: RuntimeSnapshot): void {
     for (const chunk of snapshot.chunks) this.knownChunks.add(chunk);
-    for (const route of snapshot.routes) this.knownRoutes.add(route);
-    // Links the page offers are candidate routes. For an app whose router is
-    // not readable, this is what stops the meter from claiming 100% coverage
-    // when the operator has seen one page of twelve.
-    for (const link of snapshot.links) this.knownRoutes.add(link);
+    for (const route of snapshot.routes) this.declaredRoutes.add(route);
+    // Links are what the app points at, which is not the same as what a bundle
+    // must contain: a nav bar and a footer put every marketing page in front of
+    // the meter as an unmet obligation. They are kept as a discovery signal and
+    // only scored when there is no route table to score instead.
+    for (const link of snapshot.links) this.discoveredLinks.add(link);
     if (snapshot.framework) {
       this.framework = snapshot.framework;
       if (this.currentManifest) this.currentManifest.stack = snapshot.framework;
@@ -164,16 +169,61 @@ export class SessionState {
     };
   }
 
+  /**
+   * The routes the meter holds the capture to.
+   *
+   * A declared route is a pattern and a visit is a concrete path, so the two
+   * are joined by matching rather than by equality — comparing them directly
+   * left every parameterised route permanently unvisited.
+   */
+  private scoredRoutes(): Array<{ path: string; visited: boolean }> {
+    const visited = Array.from(this.visitedRoutes);
+
+    if (this.declaredRoutes.size === 0) {
+      // No readable router — a server-rendered site, or one whose router the
+      // probes do not know. Links are the only evidence of what exists, so
+      // here they are the denominator rather than a free 100%.
+      const paths = new Set([...this.discoveredLinks, ...visited]);
+      return Array.from(paths).map((path) => ({
+        path,
+        visited: this.visitedRoutes.has(path),
+      }));
+    }
+
+    const patterns = Array.from(this.declaredRoutes);
+    const records = patterns.map((pattern) => ({
+      path: pattern,
+      visited: visited.some((path) => matchesRoutePattern(pattern, path)),
+    }));
+
+    // A page the operator reached that the route table never declared is still
+    // a page this capture covers, and dropping it would report less than was
+    // actually done.
+    for (const path of visited) {
+      if (patterns.some((pattern) => matchesRoutePattern(pattern, path))) continue;
+      records.push({ path, visited: true });
+    }
+
+    return records;
+  }
+
+  /** Everything discovered, for the bundle: the CLI reconstructs from all of it. */
+  private allKnownRoutes(): Set<string> {
+    return new Set([...this.declaredRoutes, ...this.discoveredLinks, ...this.visitedRoutes]);
+  }
+
+  /** Discovered links, reported beside the meter rather than scored by it. */
+  links(): string[] {
+    return Array.from(this.discoveredLinks);
+  }
+
   coverage(): CoverageReport {
     return computeCoverage({
       chunks: {
         known: Array.from(this.knownChunks),
         loaded: this.loadedChunks(),
       },
-      routes: Array.from(this.knownRoutes).map((path) => ({
-        path,
-        visited: this.visitedRoutes.has(path),
-      })),
+      routes: this.scoredRoutes(),
       requests: this.pipeline.rows().map((row) => ({
         method: row.method,
         url: row.url,
@@ -223,7 +273,7 @@ export class SessionState {
       snapshots: Object.fromEntries(this.snapshots),
       runtime: {
         framework: this.framework,
-        routes: Array.from(this.knownRoutes),
+        routes: Array.from(this.allKnownRoutes()),
         stores: this.framework?.stateLibraries ?? [],
         chunks: {
           known: Array.from(this.knownChunks),

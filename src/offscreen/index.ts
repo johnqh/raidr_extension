@@ -42,7 +42,7 @@ function send(): void {
 
   // The side panel may be closed; a message with no receiver is not an error.
   void chrome.runtime
-    .sendMessage({ kind: 'session/coverage', report: state.coverage() })
+    .sendMessage({ kind: 'session/coverage', report: state.coverage(), links: state.links() })
     .catch(() => undefined);
   void chrome.runtime
     .sendMessage({ kind: 'session/redaction', entries: state.redaction() })

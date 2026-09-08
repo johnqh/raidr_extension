@@ -3,6 +3,12 @@ import type { CoverageReport } from '@sudobility/raidr_lib';
 
 interface Props {
   report: CoverageReport;
+  /**
+   * Internal links the pages offer. Reported, never scored: a nav bar and a
+   * footer are not a list of pages the bundle has to contain, and counting
+   * them held every capture short of complete for reasons nobody could act on.
+   */
+  links: string[];
 }
 
 /** Full coverage is the goal, so the bar only turns green when it is reached. */
@@ -52,7 +58,7 @@ function Track({
   );
 }
 
-export function CoverageMeter({ report }: Props) {
+export function CoverageMeter({ report, links }: Props) {
   return (
     <Card className="border border-border">
       <CardContent className="pt-4">
@@ -77,6 +83,24 @@ export function CoverageMeter({ report }: Props) {
           missing={report.routes.unvisited}
           missingLabel="not visited"
         />
+
+        {links.length > 0 && (
+          <details className="mb-3">
+            <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+              {links.length} links discovered
+            </summary>
+            <ul className="mt-1.5 space-y-0.5">
+              {links.map((link) => (
+                <li
+                  key={link}
+                  className="truncate font-mono text-[11px] text-muted-foreground"
+                >
+                  {link}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
 
         <details>
           <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">

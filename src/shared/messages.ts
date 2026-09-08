@@ -19,7 +19,12 @@ export type RaidrMessage =
   | { kind: 'export/start' }
   | { kind: 'export/ready'; blobUrl: string; filename: string }
   | { kind: 'export/manifest'; manifest: RaidrManifest }
-  | { kind: 'session/coverage'; report: import('@sudobility/raidr_lib').CoverageReport }
+  | {
+      kind: 'session/coverage';
+      report: import('@sudobility/raidr_lib').CoverageReport;
+      /** Internal links discovered but not scored — see SessionState.links(). */
+      links: string[];
+    }
   | { kind: 'capture/runtime'; snapshot: import('@/background/cdpSession').RuntimeSnapshot }
   | { kind: 'session/begin'; origin: string }
   | { kind: 'session/redaction'; entries: import('@sudobility/raidr_lib').RedactionEntry[] }

@@ -299,3 +299,79 @@ test('a non-script response is not scanned for a chunk manifest', async () => {
   );
   expect(state.coverage().chunks.known).toBe(0);
 });
+
+test('a concrete visit marks the declared route it matches as visited', async () => {
+  const state = session();
+  state.ingestRuntime({
+    framework: null,
+    routes: ['/', '/users/:id', '/admin'],
+    chunks: [],
+    links: [],
+  });
+  state.markVisited('/users/42');
+
+  const report = state.coverage();
+  expect(report.routes.total).toBe(3);
+  expect(report.routes.visited).toBe(1);
+  expect(report.routes.unvisited).toEqual(['/', '/admin']);
+});
+
+/** Every link in a nav bar is not a page the bundle has to contain. */
+test('links stay out of the denominator when the router is readable', async () => {
+  const state = session();
+  state.ingestRuntime({
+    framework: null,
+    routes: ['/', '/settings'],
+    chunks: [],
+    links: ['/about', '/pricing', '/blog/hello', '/blog/world', '/careers'],
+  });
+
+  const report = state.coverage();
+  expect(report.routes.total).toBe(2);
+  expect(state.links()).toHaveLength(5);
+});
+
+/** A server-rendered site exposes no route table; links are the only signal. */
+test('links become the denominator when no router is readable', async () => {
+  const state = session();
+  state.ingestRuntime({
+    framework: null,
+    routes: [],
+    chunks: [],
+    links: ['/about', '/pricing'],
+  });
+  state.markVisited('/about');
+
+  const report = state.coverage();
+  expect(report.routes.total).toBe(2);
+  expect(report.routes.visited).toBe(1);
+  expect(report.routes.unvisited).toEqual(['/pricing']);
+});
+
+test('a visited path the route table never declared is still counted', async () => {
+  const state = session();
+  state.ingestRuntime({ framework: null, routes: ['/'], chunks: [], links: [] });
+  state.markVisited('/undeclared');
+
+  const report = state.coverage();
+  expect(report.routes.total).toBe(2);
+  expect(report.routes.visited).toBe(1);
+  expect(report.routes.unvisited).toEqual(['/']);
+});
+
+/** The bundle keeps seeing everything discovered; only the meter is narrowed. */
+test('the bundle still records declared routes and links together', async () => {
+  const state = session();
+  state.ingestRuntime({
+    framework: null,
+    routes: ['/settings'],
+    chunks: [],
+    links: ['/about'],
+  });
+  state.markVisited('/dashboard');
+
+  const routes = state.bundleInput().runtime.routes as string[];
+  expect(routes).toContain('/settings');
+  expect(routes).toContain('/about');
+  expect(routes).toContain('/dashboard');
+});

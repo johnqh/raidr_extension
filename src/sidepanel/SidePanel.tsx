@@ -24,6 +24,7 @@ export function SidePanel() {
   const [entries, setEntries] = useState<RedactionEntry[]>([]);
   const [acknowledged, setAcknowledged] = useState(false);
   const [stats, setStats] = useState<SessionStats | null>(null);
+  const [links, setLinks] = useState<string[]>([]);
 
   useEffect(() => {
     const listener = (message: unknown) => {
@@ -32,6 +33,7 @@ export function SidePanel() {
       switch (message.kind) {
         case 'session/coverage':
           setReport(message.report);
+          setLinks(message.links);
           return;
         case 'session/redaction':
           setEntries(message.entries);
@@ -125,7 +127,7 @@ export function SidePanel() {
         />
       )}
 
-      <CoverageMeter report={report} />
+      <CoverageMeter report={report} links={links} />
 
       <RedactionReport
         entries={entries}

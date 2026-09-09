@@ -375,3 +375,166 @@ test('the bundle still records declared routes and links together', async () => 
   expect(routes).toContain('/about');
   expect(routes).toContain('/dashboard');
 });
+
+/**
+ * Export keeps the bundle to the captured site. A subdomain is the same site;
+ * an asset CDN on another domain is not, and is dropped even though the page
+ * loaded it.
+ */
+test('the exported bundle excludes requests from other domains', async () => {
+  const state = session();
+  state.begin('https://www.opendota.com', '2026-09-08T19:09:36.605Z', 's2');
+  await state.ingestRequest(assembled('https://www.opendota.com/heroes', 'r1'), '{}');
+  await state.ingestRequest(assembled('https://api.opendota.com/api/heroStats', 'r2'), '{}');
+  await state.ingestRequest(assembled('https://cdn.steamstatic.com/hero.png', 'r3'), 'png');
+  await state.ingestRequest(assembled('https://www.reddit.com/r/popular/', 'r4'), 'html');
+
+  const urls = state.bundleInput().requests.map((r) => r.url);
+  expect(urls).toEqual([
+    'https://www.opendota.com/heroes',
+    'https://api.opendota.com/api/heroStats',
+  ]);
+});
+
+test('the panel still counts every captured request', async () => {
+  const state = session();
+  state.begin('https://www.opendota.com', '2026-09-08T19:09:36.605Z', 's2');
+  await state.ingestRequest(assembled('https://www.opendota.com/a', 'r1'), '{}');
+  await state.ingestRequest(assembled('https://www.reddit.com/b', 'r2'), '{}');
+  // The filter belongs to export; the operator sees what was actually captured.
+  expect(state.rows()).toHaveLength(2);
+});
+
+test('the exported bundle excludes gaps from other domains', async () => {
+  const state = session();
+  state.begin('https://www.opendota.com', '2026-09-08T19:09:36.605Z', 's2');
+  state.ingestGap({
+    requestId: 'g1',
+    url: 'https://api.opendota.com/api/matches/1',
+    reason: 'body-evicted',
+    ts: 1756029601000,
+    detail: 'evicted',
+  });
+  state.ingestGap({
+    requestId: 'g2',
+    url: 'https://www.reddit.com/svc/x',
+    reason: 'body-evicted',
+    ts: 1756029601000,
+    detail: 'evicted',
+  });
+
+  const gaps = state.bundleInput().gaps.map((g) => g.url);
+  expect(gaps).toEqual(['https://api.opendota.com/api/matches/1']);
+});
+
+/**
+ * The offscreen document outlives a capture, so its SessionState is reused for
+ * the next one. begin() replacing only the manifest meant every later session
+ * inherited the previous one's requests, routes, snapshots and navigations —
+ * and exported them under the new site's name.
+ */
+test('begin clears everything the previous session captured', async () => {
+  const state = session();
+  await state.ingestRequest(assembled('https://example.com/api/a'), '{"token":"x"}');
+  state.ingestGap({
+    requestId: 'g1',
+    url: 'https://example.com/lost.js',
+    reason: 'body-evicted',
+    ts: 1756029601000,
+    detail: 'evicted',
+  });
+  state.ingestRuntime({
+    framework: {
+      framework: 'react',
+      frameworkVersion: '17.0.2',
+      router: null,
+      routerVersion: null,
+      stateLibraries: [],
+      bundler: 'vite',
+    },
+    routes: ['/old'],
+    chunks: ['assets/old.js'],
+    links: ['/old-link'],
+  });
+  await state.ingestNavigation({
+    navigationId: 'nav1',
+    path: '/old',
+    origin: 'https://example.com',
+    sameDocument: false,
+    html: '<html><body>old</body></html>',
+  });
+  await state.ingestSourceMap('https://example.com/old.js', '{"version":3,"sources":[]}');
+
+  state.begin('https://www.opendota.com', '2026-09-08T19:09:36.605Z', 's2');
+
+  expect(state.rows()).toEqual([]);
+  expect(state.links()).toEqual([]);
+  expect(state.redaction()).toEqual([]);
+
+  const input = state.bundleInput();
+  expect(input.requests).toEqual([]);
+  expect(input.gaps).toEqual([]);
+  expect(input.frames).toEqual([]);
+  expect(input.snapshots).toEqual({});
+  expect(input.sourceMaps).toEqual({});
+  expect(input.runtime.routes).toEqual([]);
+  expect(input.runtime.chunks).toEqual({ known: [], loaded: [] });
+  expect(input.runtime.navigations).toEqual([]);
+  expect(input.runtime.framework).toBeNull();
+  expect(state.coverage().routes.total).toBe(0);
+  expect(state.manifest()!.origin).toBe('https://www.opendota.com');
+});
+
+test('a session after a reset captures normally', async () => {
+  const state = session();
+  await state.ingestRequest(assembled('https://example.com/api/old'), '{}');
+  state.begin('https://www.opendota.com', '2026-09-08T19:09:36.605Z', 's2');
+  await state.ingestRequest(assembled('https://api.opendota.com/api/heroStats', 'r2'), '[]');
+
+  expect(state.bundleInput().requests.map((r) => r.url)).toEqual([
+    'https://api.opendota.com/api/heroStats',
+  ]);
+});
+
+/**
+ * Enumerates the instance rather than naming fields, so a collection added to
+ * SessionState later fails here until begin() clears it too. The bug this
+ * guards was a field nobody remembered to reset.
+ */
+test('begin leaves no populated collection behind', async () => {
+  const state = session();
+  await state.ingestRequest(assembled('https://example.com/api/a'), '{"k":"v"}');
+  state.ingestRuntime({
+    framework: null,
+    routes: ['/old'],
+    chunks: ['assets/old.js'],
+    links: ['/old-link'],
+  });
+  await state.ingestNavigation({
+    navigationId: 'nav1',
+    path: '/old',
+    origin: 'https://example.com',
+    sameDocument: false,
+    html: '<html><body>old</body></html>',
+  });
+
+  state.begin('https://www.opendota.com', '2026-09-08T19:09:36.605Z', 's2');
+
+  // The store outlives a session by design, and the pipeline is replaced.
+  const exempt = new Set(['store', 'salt', 'pipeline', 'currentManifest']);
+  const leftovers: string[] = [];
+  for (const [name, value] of Object.entries(state as unknown as Record<string, unknown>)) {
+    if (exempt.has(name)) continue;
+    const size =
+      value instanceof Set || value instanceof Map
+        ? value.size
+        : Array.isArray(value)
+          ? value.length
+          : value === null || value === undefined
+            ? 0
+            : -1;
+    if (size > 0) leftovers.push(`${name} (${size})`);
+    if (size === -1) leftovers.push(`${name} (not cleared: ${String(value)})`);
+  }
+  expect(leftovers).toEqual([]);
+});

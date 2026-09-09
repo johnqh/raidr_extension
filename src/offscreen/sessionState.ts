@@ -14,6 +14,7 @@ import type { NavigationRecord, RuntimeSnapshot } from '@/background/cdpSession'
 import { CapturePipeline } from './capturePipeline';
 import { viteChunksFromSource } from './viteManifest';
 import { matchesRoutePattern } from './routeMatch';
+import { isSameDomain } from './sameDomain';
 import type { ContentStore } from './store';
 import type { BundleInput } from '@sudobility/raidr_lib';
 
@@ -37,13 +38,40 @@ export class SessionState {
 
   constructor(
     private readonly store: ContentStore,
-    salt: string
+    private readonly salt: string
   ) {
     this.pipeline = new CapturePipeline(store, salt);
   }
 
+  /**
+   * Starts a session, discarding everything the previous one left behind.
+   *
+   * The offscreen document outlives any single capture — `ensureOffscreen`
+   * reuses it — so this object is reused too. Replacing only the manifest, as
+   * this did, meant a second capture inherited the first one's requests,
+   * routes, links, chunks, gaps, navigations and rendered DOM, then exported
+   * them under the new site's name: a bundle of one site carrying another's
+   * traffic and pages. Every field the session accumulates is reset here, so
+   * adding one to the class without adding it here reintroduces that bug.
+   *
+   * The content store is deliberately left alone. `buildBundleFiles` writes
+   * only the hashes its input references, so an orphaned body cannot reach the
+   * zip; clearing it is storage hygiene, not correctness, and doing it here
+   * would race the export of a bundle still being built.
+   */
   begin(origin: string, startedAt: string, sessionId: string): void {
     this.currentManifest = createManifest({ sessionId, origin, startedAt });
+    this.pipeline = new CapturePipeline(this.store, this.salt);
+    this.gaps = [];
+    this.frames = [];
+    this.knownChunks.clear();
+    this.declaredRoutes.clear();
+    this.discoveredLinks.clear();
+    this.visitedRoutes.clear();
+    this.framework = null;
+    this.sourceMaps.clear();
+    this.navigations = [];
+    this.snapshots.clear();
   }
 
   async ingestRequest(
@@ -260,14 +288,38 @@ export class SessionState {
     return this.pipeline.rows();
   }
 
+  /**
+   * Keeps the exported bundle to the captured site.
+   *
+   * A capture that inherits state from an earlier session — or a tab that
+   * carries another site's traffic — puts recordings in the zip that the
+   * operator never meant to share. Only the export is filtered: `rows()` still
+   * reports everything captured, so the panel's counts stay honest about what
+   * the session actually saw.
+   *
+   * The cost is deliberate and worth stating: an asset CDN on another domain is
+   * dropped even though the page loaded it. Subdomains of the captured site are
+   * kept, so an API on its own subdomain survives.
+   */
+  private belongsToSite(url: string): boolean {
+    const origin = this.currentManifest?.origin ?? '';
+    return isSameDomain(url, origin);
+  }
+
   bundleInput(): BundleInput {
     if (!this.currentManifest) throw new Error('session not started');
+    const keptRequests = this.pipeline
+      .rows()
+      .filter((row) => this.belongsToSite(row.url));
+    const keptIds = new Set(keptRequests.map((row) => row.id));
     return {
       store: this.store,
       manifest: this.currentManifest,
-      requests: this.pipeline.rows(),
-      frames: this.frames,
-      gaps: this.gaps,
+      requests: keptRequests,
+      // A frame carries no URL of its own — only the CDP request id of the
+      // socket that produced it — so it travels with its connection.
+      frames: this.frames.filter((frame) => keptIds.has(frame.id)),
+      gaps: this.gaps.filter((gap) => this.belongsToSite(gap.url)),
       redaction: this.redaction(),
       sourceMaps: this.sourceMapHashes(),
       snapshots: Object.fromEntries(this.snapshots),

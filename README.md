@@ -38,7 +38,7 @@ PII are redacted on the way into the buffer, not on the way out. Identifiers are
 replaced with stable pseudonyms so a user id stays joinable across requests
 without being the real one. The side panel reports exactly what was redacted.
 
-The rules live in [`raidr_lib`](https://github.com/johnqh/raidr_lib), which the
+The rules live in [`raidr_processor`](https://github.com/johnqh/raidr_processor), which the
 extension imports — the same code path the CLI uses, so a bundle is redacted
 identically no matter who produced it.
 
@@ -65,7 +65,7 @@ bun test           # no browser needed
 
 | Repository | Role |
 |---|---|
-| [`raidr_lib`](https://github.com/johnqh/raidr_lib) | Bundle format and pure analysis |
+| [`raidr_processor`](https://github.com/johnqh/raidr_processor) | Bundle format and pure analysis |
 | [`raidr_extension`](https://github.com/johnqh/raidr_extension) | Chrome MV3 extension that performs the capture — this repo |
 | [`raidr_cli`](https://github.com/johnqh/raidr_cli) | Reconstruction CLI and the agent skill |
 | [`raidr_web`](https://github.com/johnqh/raidr_web) | Landing site |

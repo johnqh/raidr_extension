@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Alert, Badge, Button } from '@sudobility/components';
-import type { CoverageReport, RedactionEntry } from '@sudobility/raidr_lib';
+import type { CoverageReport, RedactionEntry } from '@sudobility/raidr_processor';
 import { isRaidrMessage, type SessionStats } from '@/shared/messages';
 import { CoverageMeter } from './components/CoverageMeter';
 import { RedactionReport } from './components/RedactionReport';

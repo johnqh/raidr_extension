@@ -1,4 +1,4 @@
-import type { Gap, RaidrManifest } from '@sudobility/raidr_lib';
+import type { Gap, RaidrManifest } from '@sudobility/raidr_processor';
 
 export interface SessionStats {
   requests: number;
@@ -21,13 +21,13 @@ export type RaidrMessage =
   | { kind: 'export/manifest'; manifest: RaidrManifest }
   | {
       kind: 'session/coverage';
-      report: import('@sudobility/raidr_lib').CoverageReport;
+      report: import('@sudobility/raidr_processor').CoverageReport;
       /** Internal links discovered but not scored — see SessionState.links(). */
       links: string[];
     }
   | { kind: 'capture/runtime'; snapshot: import('@/background/cdpSession').RuntimeSnapshot }
   | { kind: 'session/begin'; origin: string }
-  | { kind: 'session/redaction'; entries: import('@sudobility/raidr_lib').RedactionEntry[] }
+  | { kind: 'session/redaction'; entries: import('@sudobility/raidr_processor').RedactionEntry[] }
   | { kind: 'capture/sourcemap'; scriptUrl: string; text: string }
   | { kind: 'capture/navigation'; navigation: import('@/background/cdpSession').NavigationRecord }
   | { kind: 'session/started'; tabId: number }

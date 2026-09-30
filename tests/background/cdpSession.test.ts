@@ -12,7 +12,7 @@ function wire(fake: Fake, session: CdpSession): CdpSession {
   fake.onEvent((tabId, method, params) => void session.handleEvent(tabId, method, params));
   return session;
 }
-import type { Gap } from '@sudobility/raidr_lib';
+import type { Gap } from '@sudobility/raidr_processor';
 
 function collectingSink() {
   const requests: Array<{ url: string; body: string | null }> = [];

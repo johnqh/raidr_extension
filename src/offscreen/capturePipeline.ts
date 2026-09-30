@@ -3,7 +3,7 @@ import {
   redactRequest,
   type CapturedRequest,
   type RedactionEntry,
-} from '@sudobility/raidr_lib';
+} from '@sudobility/raidr_processor';
 import type { AssembledRequest } from '@/background/requestAssembler';
 import type { ContentStore } from './store';
 

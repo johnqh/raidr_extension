@@ -1,5 +1,5 @@
 import { Badge, Card, CardContent, Checkbox } from '@sudobility/components';
-import type { RedactionEntry } from '@sudobility/raidr_lib';
+import type { RedactionEntry } from '@sudobility/raidr_processor';
 
 interface Props {
   entries: RedactionEntry[];

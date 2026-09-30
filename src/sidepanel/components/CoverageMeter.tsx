@@ -1,5 +1,5 @@
 import { Card, CardContent, Progress } from '@sudobility/components';
-import type { CoverageReport } from '@sudobility/raidr_lib';
+import type { CoverageReport } from '@sudobility/raidr_processor';
 
 interface Props {
   report: CoverageReport;

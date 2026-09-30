@@ -122,7 +122,7 @@ is testable without a network.
 
 ### Provenance
 
-`CapturedRequest` gains `backfilled?: boolean` in raidr_lib. The synthesized
+`CapturedRequest` gains `backfilled?: boolean` in raidr_processor. The synthesized
 record is otherwise ordinary:
 
 | Field | Value |
@@ -208,7 +208,7 @@ dep-list total without the page requesting anything extra.
 - `src/offscreen/backfillQueue.ts` — new
 - `src/offscreen/index.ts` — wire the queue to the session
 
-**raidr_lib**
+**raidr_processor**
 - `src/bundle/types.ts` — `backfilled?: boolean` on `CapturedRequest`; the
   `backfill-failed` gap reason
 

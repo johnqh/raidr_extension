@@ -1,7 +1,7 @@
 import { isRaidrMessage } from '@/shared/messages';
 import { IdbContentStore } from './store';
 import { SessionState } from './sessionState';
-import { buildBundleFiles, zipBundle, bundleFilename } from '@sudobility/raidr_lib';
+import { buildBundleFiles, zipBundle, bundleFilename } from '@sudobility/raidr_processor';
 
 const store = new IdbContentStore('raidr-capture', indexedDB);
 

@@ -1,4 +1,4 @@
-import type { ContentStore } from '@sudobility/raidr_lib';
+import type { ContentStore } from '@sudobility/raidr_processor';
 import { sha256Hex } from './hash';
 
 const STORE_NAME = 'content';

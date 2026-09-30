@@ -8,7 +8,7 @@ import {
   type RedactionEntry,
   type StackFingerprint,
   type RaidrManifest,
-} from '@sudobility/raidr_lib';
+} from '@sudobility/raidr_processor';
 import type { AssembledRequest } from '@/background/requestAssembler';
 import type { NavigationRecord, RuntimeSnapshot } from '@/background/cdpSession';
 import { CapturePipeline } from './capturePipeline';
@@ -16,7 +16,7 @@ import { viteChunksFromSource } from './viteManifest';
 import { matchesRoutePattern } from './routeMatch';
 import { isSameDomain } from './sameDomain';
 import type { ContentStore } from './store';
-import type { BundleInput } from '@sudobility/raidr_lib';
+import type { BundleInput } from '@sudobility/raidr_processor';
 
 export class SessionState {
   private pipeline: CapturePipeline;

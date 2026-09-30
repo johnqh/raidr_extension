@@ -8,7 +8,7 @@ runtime, and exports it as an raidr bundle.
 - Vite + `@crxjs/vite-plugin`, React 18, TypeScript, Bun
 - `@sudobility/components` + `@sudobility/design` for all panel UI
 - Tailwind driven by `createTailwindPreset()` from `@sudobility/design`
-- `@sudobility/raidr_lib` for the bundle format, redaction, and coverage
+- `@sudobility/raidr_processor` for the bundle format, redaction, and coverage
 
 ## Structure
 
@@ -53,7 +53,7 @@ bun test           # 98 tests, no browser needed
 
 ## Related projects
 
-- `raidr_lib` — bundle format, redaction, coverage, analysis
+- `raidr_processor` — bundle format, redaction, coverage, analysis
 - `raidr_cli` — reconstruction CLI and the agent skill
 - `raidr_web` — landing page
 - `testomniac_extension` — reference for the design-system setup

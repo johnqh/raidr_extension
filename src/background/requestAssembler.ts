@@ -1,4 +1,4 @@
-import type { CapturedRequest, Gap } from '@sudobility/raidr_lib';
+import type { CapturedRequest, Gap } from '@sudobility/raidr_processor';
 
 export interface AssembledRequest
   extends Omit<CapturedRequest, 'requestBodyHash' | 'responseBodyHash'> {

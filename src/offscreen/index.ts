@@ -1,3 +1,12 @@
+/**
+ * Offscreen document: the capture buffer and exporter.
+ *
+ * Exists because the service worker is terminated when idle and cannot hold
+ * the session or build a Blob. Receives `capture/*` messages from the worker,
+ * feeds them to `SessionState` (which redacts before anything reaches
+ * IndexedDB), broadcasts stats/coverage/redaction to the side panel, and on
+ * `export/start` zips the bundle and hands a blob URL to the worker to download.
+ */
 import { isRaidrMessage } from '@/shared/messages';
 import { IdbContentStore } from './store';
 import { SessionState } from './sessionState';

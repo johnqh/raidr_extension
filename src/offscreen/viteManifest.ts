@@ -24,6 +24,10 @@
  */
 const DEPS = /__vite__mapDeps[\s\S]{0,120}?m\.f=(\[[^\]]*\])/g;
 
+/**
+ * `.js` entries from every `__vite__mapDeps` list in `source`, deduplicated and
+ * in order of appearance. Returns [] for anything that is not a Vite chunk.
+ */
 export function viteChunksFromSource(source: string): string[] {
   const chunks: string[] = [];
 

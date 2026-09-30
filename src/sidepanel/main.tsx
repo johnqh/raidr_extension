@@ -1,3 +1,4 @@
+/** Side panel entry (`src/sidepanel/index.html`, opened by clicking the toolbar action). */
 import { createRoot } from 'react-dom/client';
 import { SidePanel } from './SidePanel';
 import './index.css';

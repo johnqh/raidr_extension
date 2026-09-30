@@ -1,8 +1,13 @@
+/**
+ * Content-addressed body store in IndexedDB. Bodies are keyed by SHA-256, so a
+ * script fetched on every navigation is stored once.
+ */
 import type { ContentStore } from '@sudobility/raidr_processor';
 import { sha256Hex } from './hash';
 
 const STORE_NAME = 'content';
 
+/** Re-exported so offscreen modules import the store contract from one place. */
 export type { ContentStore };
 
 interface ContentRow {
@@ -18,6 +23,10 @@ function promisify<T>(request: IDBRequest<T>): Promise<T> {
   });
 }
 
+/**
+ * `ContentStore` backed by one object store (`content`, keyed by `hash`).
+ * The factory is injected so tests run against `fake-indexeddb`.
+ */
 export class IdbContentStore implements ContentStore {
   private dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -47,6 +56,7 @@ export class IdbContentStore implements ContentStore {
     return db.transaction(STORE_NAME, mode).objectStore(STORE_NAME);
   }
 
+  /** Stores `bytes` if absent and returns their hash. */
   async put(bytes: Uint8Array): Promise<string> {
     const hash = await sha256Hex(bytes);
     if (await this.has(hash)) return hash;
@@ -73,6 +83,7 @@ export class IdbContentStore implements ContentStore {
     return promisify(store.count());
   }
 
+  /** Sum of stored body sizes; reads every row, so call it sparingly. */
   async totalBytes(): Promise<number> {
     const store = await this.tx('readonly');
     const rows = await promisify<ContentRow[]>(store.getAll());

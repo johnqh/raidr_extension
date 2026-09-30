@@ -1,3 +1,8 @@
+/**
+ * The side panel: start/stop, live stats, coverage, redaction review, export.
+ * It holds no capture data — everything shown arrives as runtime messages from
+ * the service worker and the offscreen document.
+ */
 import { useEffect, useState } from 'react';
 import { Alert, Badge, Button } from '@sudobility/components';
 import type { CoverageReport, RedactionEntry } from '@sudobility/raidr_processor';
@@ -5,6 +10,7 @@ import { isRaidrMessage, type SessionStats } from '@/shared/messages';
 import { CoverageMeter } from './components/CoverageMeter';
 import { RedactionReport } from './components/RedactionReport';
 
+/** Shown until the first `session/coverage` message arrives. */
 const EMPTY_REPORT: CoverageReport = {
   chunks: { known: 0, loaded: 0, pct: 100, missing: [] },
   routes: { total: 0, visited: 0, pct: 100, unvisited: [] },
@@ -18,6 +24,10 @@ type Status =
   | { state: 'stopped' }
   | { state: 'error'; detail: string };
 
+/**
+ * Root panel component. Export stays disabled until the operator ticks the
+ * redaction acknowledgement, so nothing leaves the browser unreviewed.
+ */
 export function SidePanel() {
   const [status, setStatus] = useState<Status>({ state: 'idle' });
   const [report, setReport] = useState<CoverageReport>(EMPTY_REPORT);

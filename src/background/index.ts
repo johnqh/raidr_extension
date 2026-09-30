@@ -1,3 +1,13 @@
+/**
+ * MV3 service worker: owns the debugger attachment and the download.
+ *
+ * Start/stop arrive from the side panel; CDP events are fed to `CdpSession`,
+ * whose sink forwards assembled requests, gaps, navigations, runtime
+ * snapshots and source maps to the offscreen document, which redacts and
+ * stores them. The worker keeps no capture data of its own — only the tab id
+ * and navigation counter in `chrome.storage.session`, so a recycled worker can
+ * resume.
+ */
 import { isRaidrMessage } from '@/shared/messages';
 import { LiveChromeAdapter } from '@/adapters/ChromeAdapter';
 import { CdpSession, type CaptureSink } from './cdpSession';

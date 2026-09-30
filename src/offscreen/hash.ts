@@ -1,3 +1,4 @@
+/** Lowercase hex SHA-256 of `bytes`; the content-store key. */
 export async function sha256Hex(bytes: Uint8Array): Promise<string> {
   // TypeScript 5.7+ types Uint8Array as Uint8Array<ArrayBufferLike>, which is
   // not assignable to BufferSource (SharedArrayBuffer cannot be excluded).

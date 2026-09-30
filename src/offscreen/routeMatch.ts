@@ -45,6 +45,10 @@ function parse(segment: string): Segment {
   return { param: false, splat: false, optional: false, literal: segment };
 }
 
+/**
+ * True when concrete `path` (e.g. `/users/42`) satisfies router `pattern`
+ * (e.g. `/users/:id`, `/:pathMatch(.*)*`, `*`).
+ */
 export function matchesRoutePattern(pattern: string, path: string): boolean {
   const patternSegments = split(pattern).map(parse);
   const pathSegments = split(path);

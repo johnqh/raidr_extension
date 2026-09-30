@@ -7,6 +7,10 @@ interface Props {
   onAcknowledge: () => void;
 }
 
+/**
+ * What redaction replaced, grouped by kind, with sample placeholders (never the
+ * original values). Its checkbox is the gate the Export button waits on.
+ */
 export function RedactionReport({ entries, acknowledged, onAcknowledge }: Props) {
   const byKind = new Map<string, number>();
   for (const entry of entries) {

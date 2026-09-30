@@ -63,6 +63,10 @@ function Track({
   );
 }
 
+/**
+ * Chunk count, route coverage, discovered links and observed endpoints, from
+ * the offscreen document's `CoverageReport`.
+ */
 export function CoverageMeter({ report, links }: Props) {
   return (
     <Card className="border border-border">

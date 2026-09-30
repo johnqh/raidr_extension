@@ -33,6 +33,10 @@ function isLiteralHost(host: string): boolean {
   return /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
 }
 
+/**
+ * The registrable domain of `host` (`api.example.co.uk` → `example.co.uk`).
+ * IP addresses and single-label hosts are returned as-is (lowercased).
+ */
 export function registrableDomain(host: string): string {
   const lower = host.toLowerCase();
   if (isLiteralHost(lower)) return lower;
@@ -45,6 +49,7 @@ export function registrableDomain(host: string): string {
   return labels.slice(-depth).join('.');
 }
 
+/** True when `url` and `origin` share a registrable domain; false if either fails to parse. */
 export function isSameDomain(url: string, origin: string): boolean {
   let target: string;
   let site: string;

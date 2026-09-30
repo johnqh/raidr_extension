@@ -1,3 +1,13 @@
+/**
+ * Source-map discovery for scripts seen via `Debugger.scriptParsed`. Maps are
+ * fetched by `CdpSession.discoverSourceMap`; these helpers are pure.
+ */
+
+/**
+ * URLs worth trying for a script's map, in order: the declared
+ * `sourceMappingURL` (resolved against the script, skipped when inline
+ * `data:`), then `<script>.map`. Non-http scripts yield none.
+ */
 export function candidateMapUrls(
   scriptUrl: string,
   declaredMapUrl: string | null
@@ -22,6 +32,10 @@ export function candidateMapUrls(
   return candidates;
 }
 
+/**
+ * True when the map embeds at least one non-empty `sourcesContent` entry. A map
+ * without it names files but carries no source to reconstruct from.
+ */
 export function isUsefulSourceMap(text: string): boolean {
   try {
     const parsed: unknown = JSON.parse(text);

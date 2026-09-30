@@ -1,5 +1,12 @@
+/**
+ * The message protocol between the three extension contexts: service worker
+ * (`src/background`), offscreen document (`src/offscreen`) and side panel
+ * (`src/sidepanel`). All of them use `chrome.runtime.sendMessage`, which
+ * broadcasts, so every listener filters by `kind`.
+ */
 import type { Gap, RaidrManifest } from '@sudobility/raidr_processor';
 
+/** Running totals the offscreen document reports to the side panel. */
 export interface SessionStats {
   requests: number;
   bodies: number;
@@ -9,6 +16,15 @@ export interface SessionStats {
   quotaPct: number | null;
 }
 
+/**
+ * Every message the extension exchanges, discriminated by `kind`.
+ * `capture/*` flows worker → offscreen. `session/start|stop` go panel →
+ * worker, `session/begin` goes worker → offscreen, and the remaining
+ * `session/*` kinds report status to the panel (the offscreen document also
+ * acts on `session/stopped` and `session/detached`). `export/start` goes
+ * panel → offscreen and `export/ready` offscreen → worker, which owns
+ * `chrome.downloads`.
+ */
 export type RaidrMessage =
   | { kind: 'session/start'; tabId: number }
   | { kind: 'session/stop' }
@@ -35,6 +51,11 @@ export type RaidrMessage =
   | { kind: 'session/detached'; tabId: number; reason: string }
   | { kind: 'session/error'; detail: string };
 
+/**
+ * Runtime mirror of `RaidrMessage['kind']`. A kind added to the union but not
+ * here is rejected by `isRaidrMessage` and silently ignored by every listener;
+ * `tests/messages.test.ts` lists the kinds that are actually sent.
+ */
 const KINDS: ReadonlySet<string> = new Set([
   'session/start',
   'session/stop',
@@ -57,6 +78,7 @@ const KINDS: ReadonlySet<string> = new Set([
   'session/error',
 ]);
 
+/** Narrows an incoming runtime message to `RaidrMessage` by checking its `kind` against `KINDS`. */
 export function isRaidrMessage(value: unknown): value is RaidrMessage {
   if (typeof value !== 'object' || value === null) return false;
   const kind = (value as { kind?: unknown }).kind;

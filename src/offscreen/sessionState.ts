@@ -1,3 +1,8 @@
+/**
+ * Everything one capture session accumulates in the offscreen document, and
+ * the two views derived from it: the live coverage report for the side panel
+ * and the `BundleInput` for export.
+ */
 import {
   computeCoverage,
   createManifest,
@@ -18,6 +23,10 @@ import { isSameDomain } from './sameDomain';
 import type { ContentStore } from './store';
 import type { BundleInput } from '@sudobility/raidr_processor';
 
+/**
+ * Session accumulator. One instance lives for the offscreen document's
+ * lifetime and is reset by `begin` — see the note there before adding a field.
+ */
 export class SessionState {
   private pipeline: CapturePipeline;
   private currentManifest: RaidrManifest | null = null;
@@ -74,6 +83,7 @@ export class SessionState {
     this.snapshots.clear();
   }
 
+  /** Redacts and stores a request, and mines script bodies for Vite's chunk list. */
   async ingestRequest(
     assembled: AssembledRequest,
     body: string | null
@@ -102,6 +112,7 @@ export class SessionState {
     for (const chunk of viteChunksFromSource(body)) this.knownChunks.add(chunk);
   }
 
+  /** Records something capture knows it missed. */
   ingestGap(gap: Gap): void {
     this.gaps.push(gap);
     this.refreshCounts();
@@ -142,6 +153,7 @@ export class SessionState {
     this.refreshCounts();
   }
 
+  /** Merges a probe snapshot: chunks, declared routes, links, detected stack. */
   ingestRuntime(snapshot: RuntimeSnapshot): void {
     for (const chunk of snapshot.chunks) this.knownChunks.add(chunk);
     for (const route of snapshot.routes) this.declaredRoutes.add(route);
@@ -156,15 +168,18 @@ export class SessionState {
     }
   }
 
+  /** Stores a source map by content hash, keyed by the script URL it belongs to. */
   async ingestSourceMap(scriptUrl: string, text: string): Promise<void> {
     const hash = await this.store.put(new TextEncoder().encode(text));
     this.sourceMaps.set(scriptUrl, hash);
   }
 
+  /** Script URL → source-map content hash. */
   sourceMapHashes(): Record<string, string> {
     return Object.fromEntries(this.sourceMaps);
   }
 
+  /** Records a concrete path the operator reached. */
   markVisited(path: string): void {
     this.visitedRoutes.add(path);
   }
@@ -245,6 +260,7 @@ export class SessionState {
     return Array.from(this.discoveredLinks);
   }
 
+  /** Coverage report for the side panel meter; recomputed on every call. */
   coverage(): CoverageReport {
     return computeCoverage({
       chunks: {
@@ -260,6 +276,7 @@ export class SessionState {
     });
   }
 
+  /** Placeholders issued this session. */
   redaction(): RedactionEntry[] {
     return this.pipeline.redactionEntries();
   }
@@ -280,10 +297,15 @@ export class SessionState {
     return { bytes, quotaPct };
   }
 
+  /**
+   * The live manifest, or null before `begin`. Returned by reference: the
+   * offscreen message handler stamps `endedAt` on it directly.
+   */
   manifest(): RaidrManifest | null {
     return this.currentManifest;
   }
 
+  /** Every captured row, before the export's same-domain filter. */
   rows(): CapturedRequest[] {
     return this.pipeline.rows();
   }
@@ -306,6 +328,10 @@ export class SessionState {
     return isSameDomain(url, origin);
   }
 
+  /**
+   * Input for `buildBundleFiles`: requests, frames and gaps filtered to the
+   * captured site, plus everything discovered at runtime. Throws before `begin`.
+   */
   bundleInput(): BundleInput {
     if (!this.currentManifest) throw new Error('session not started');
     const keptRequests = this.pipeline

@@ -1,3 +1,11 @@
+/**
+ * One capture of one tab over the Chrome DevTools Protocol: enables the
+ * Network/Page/Debugger/Runtime domains, assembles requests, fetches response
+ * bodies and source maps, and runs the page probes at start and after every
+ * navigation.
+ * Results go to a `CaptureSink`; this module stores nothing itself.
+ */
+
 import type { Gap, StackFingerprint } from '@sudobility/raidr_processor';
 import type { ChromeAdapter } from '@/adapters/ChromeAdapter';
 import { RequestAssembler, type AssembledRequest } from './requestAssembler';
@@ -8,9 +16,11 @@ import { candidateMapUrls, isUsefulSourceMap } from './sourceMaps';
  *  error, which must not be recorded as lost capture. */
 const BODILESS_STATUSES = new Set([101, 204, 205, 304]);
 
+/** Chrome's per-resource / total body buffer, raised so large bundles survive until `getResponseBody`. */
 const MAX_RESOURCE_BUFFER = 100 * 1024 * 1024;
 const MAX_TOTAL_BUFFER = 500 * 1024 * 1024;
 
+/** What the page probes report about the running app; sent as `capture/runtime`. */
 export interface RuntimeSnapshot {
   framework: StackFingerprint | null;
   routes: string[];
@@ -19,6 +29,7 @@ export interface RuntimeSnapshot {
   links: string[];
 }
 
+/** One full load or client-side route change; sent as `capture/navigation`. */
 export interface NavigationRecord {
   navigationId: string;
   path: string;
@@ -30,6 +41,10 @@ export interface NavigationRecord {
   html: string | null;
 }
 
+/**
+ * Where a session delivers what it captured. The service worker's sink
+ * forwards each call as a runtime message to the offscreen document.
+ */
 export interface CaptureSink {
   onRequest(
     assembled: AssembledRequest,
@@ -41,6 +56,7 @@ export interface CaptureSink {
   onSourceMap(scriptUrl: string, mapUrl: string, text: string): Promise<void>;
 }
 
+/** Decodes a `Network.getResponseBody` result to a string, or null if it has no body. */
 function decodeBody(result: unknown): string | null {
   if (typeof result !== 'object' || result === null) return null;
   const { body, base64Encoded } = result as {
@@ -51,6 +67,10 @@ function decodeBody(result: unknown): string | null {
   return base64Encoded === true ? atob(body) : body;
 }
 
+/**
+ * Capture state for a single attached tab. Constructed by the service worker
+ * both on start and when resuming after the worker was recycled.
+ */
 export class CdpSession {
   private assembler = new RequestAssembler();
   private tabId: number | null = null;
@@ -104,6 +124,7 @@ export class CdpSession {
     await this.introspect();
   }
 
+  /** Detaches from the tab. Throws if Chrome already detached it. */
   async stop(): Promise<void> {
     if (this.tabId === null) return;
     await this.adapter.detach(this.tabId);
@@ -125,10 +146,12 @@ export class CdpSession {
     this.navigationCounter = value;
   }
 
+  /** Current counter, persisted by the worker after each navigation. */
   navigationCount(): number {
     return this.navigationCounter;
   }
 
+  /** The attached tab, or null before `start` / after `stop`. */
   tabIdOrNull(): number | null {
     return this.tabId;
   }

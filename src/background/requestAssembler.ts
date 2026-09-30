@@ -1,5 +1,15 @@
+/**
+ * Joins the separate CDP Network events for one request id
+ * (`requestWillBeSent` → `responseReceived` → `loadingFinished`/`loadingFailed`)
+ * into a single record. Pure: no chrome.* calls, so it is unit-tested directly.
+ */
 import type { CapturedRequest, Gap } from '@sudobility/raidr_processor';
 
+/**
+ * A `CapturedRequest` before redaction and hashing: the request body is still
+ * inline. The offscreen `CapturePipeline` redacts it and swaps bodies for
+ * content hashes.
+ */
 export interface AssembledRequest
   extends Omit<CapturedRequest, 'requestBodyHash' | 'responseBodyHash'> {
   requestBody: string | null;
@@ -26,6 +36,7 @@ function asRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
+/** Normalises CDP headers to lowercase keys with string values. */
 function asHeaders(value: unknown): Record<string, string> {
   const source = asRecord(value);
   const out: Record<string, string> = {};
@@ -47,14 +58,20 @@ function isCapturableScheme(url: string): boolean {
   return /^https?:\/\//i.test(url);
 }
 
+/**
+ * Holds in-flight requests keyed by CDP request id. Requests whose URL is not
+ * http(s) are never tracked (see `isCapturableScheme`).
+ */
 export class RequestAssembler {
   private pending = new Map<string, Pending>();
   private navigationId: string | null = null;
 
+  /** Tags every request started from now on with this navigation. */
   setNavigationId(navigationId: string): void {
     this.navigationId = navigationId;
   }
 
+  /** In-flight requests; exposed for tests. */
   pendingCount(): number {
     return this.pending.size;
   }
@@ -97,6 +114,7 @@ export class RequestAssembler {
     if (typeof params.type === 'string') entry.resourceType = params.type;
   }
 
+  /** Completes a request and forgets it; null for an id that was never tracked. */
   onLoadingFinished(requestId: string): AssembledRequest | null {
     const entry = this.pending.get(requestId);
     if (!entry) return null;
@@ -118,6 +136,11 @@ export class RequestAssembler {
     };
   }
 
+  /**
+   * Turns a failed request into a `Gap`, so reconstruction sees it as missing
+   * rather than never requested. Cancellation maps to `cdp-error`; any other
+   * failure is recorded as `cors-opaque`.
+   */
   onLoadingFailed(
     requestId: string,
     errorText: string,

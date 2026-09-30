@@ -1,3 +1,9 @@
+/**
+ * The redaction boundary. Every captured request passes through here before
+ * its bodies are written to the content store, so nothing unredacted is ever
+ * persisted. The rules themselves live in `@sudobility/raidr_processor`, shared
+ * with the CLI.
+ */
 import {
   createPseudonymizer,
   redactRequest,
@@ -9,6 +15,11 @@ import type { ContentStore } from './store';
 
 const encoder = new TextEncoder();
 
+/**
+ * Redacts, hashes and records requests for one session. The pseudonymizer is
+ * per pipeline, so pseudonyms are stable within a session and `SessionState`
+ * gets a fresh one on every `begin`.
+ */
 export class CapturePipeline {
   private readonly pseudonymizer: ReturnType<typeof createPseudonymizer>;
   private readonly captured: CapturedRequest[] = [];
@@ -20,6 +31,7 @@ export class CapturePipeline {
     this.pseudonymizer = createPseudonymizer(salt);
   }
 
+  /** Redacts one request, stores its bodies by content hash, and returns the stored row. */
   async ingest(
     assembled: AssembledRequest,
     responseBody: string | null
@@ -64,10 +76,12 @@ export class CapturePipeline {
     return row;
   }
 
+  /** Placeholders issued so far — shown in the side panel and written to the bundle. */
   redactionEntries(): RedactionEntry[] {
     return this.pseudonymizer.entries();
   }
 
+  /** Every row ingested this session, unfiltered. */
   rows(): CapturedRequest[] {
     return this.captured;
   }

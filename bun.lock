@@ -10,7 +10,7 @@
         "@radix-ui/react-slot": "^1.2.4",
         "@sudobility/components": "^5.3.26",
         "@sudobility/design": "^1.1.56",
-        "@sudobility/raidr_processor": "^0.1.0",
+        "@sudobility/raidr_processor": "^0.1.1",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "fflate": "^0.8.2",
@@ -275,7 +275,7 @@
 
     "@sudobility/design": ["@sudobility/design@1.1.56", "", { "peerDependencies": { "clsx": ">=2.0.0", "tailwind-merge": ">=2.0.0" } }, "sha512-AgXQBIWOy867R0pwq9BYBhbCii+kqfbbxhbEHDDrtS+RMI35Wo0uNJzVyJ9nWap1P4CpxcaCfnn1NSqAHcFmVg=="],
 
-    "@sudobility/raidr_processor": ["@sudobility/raidr_processor@0.1.0", "", { "dependencies": { "fflate": "^0.8.2" } }, "sha512-AUmZtzmNCOImqkZjfD3j/sWtmL48jcj0A/UUl6P9no7dr7JYa/55VfrMrCUYCPTs0RvzipsHtLkWNeT3xsHDrA=="],
+    "@sudobility/raidr_processor": ["@sudobility/raidr_processor@0.1.1", "", { "dependencies": { "fflate": "^0.8.2" } }, "sha512-7ohQ2AONNk8NcHVPfvpz4bx/AnHyfujVRuSYiqFPOZxgL2CjzfGjqaBkDvlBoheerumJF/p8Oj5aguDLWakgRw=="],
 
     "@sudobility/types": ["@sudobility/types@1.9.67", "", {}, "sha512-d+jk4L9i8VNvOnCJW/craqiiUTPH5aRq4KYe/QBrBU3mCcTfoYjgzzXopVQRcthiZ5dwQAEpdqCTQ0gAWRN6Ww=="],
 

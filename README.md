@@ -31,6 +31,20 @@ pointing at `dist/`. Open the side panel on the tab you want to capture.
   been exercised, so you know what the capture is still missing before you
   export — gaps are recorded explicitly in the bundle rather than left implicit.
 
+## Signing in to a site for raidr.app
+
+On raidr.app, the API playground can ask the extension for a site's token so
+you never copy it out of DevTools. The extension opens the site's sign-in page
+in a popup window in your own browser profile, so an existing session is
+picked up at once. It reads only that window's requests to the API host
+raidr.app asked about, and accepts a token once a request carrying it to a
+signed-in-only endpoint succeeds. It then closes the window and hands the
+token to the raidr.app tab that asked, and nowhere else. If you close the
+window first, nothing is returned, so a guest token is never taken.
+
+Only raidr.app (and `localhost` for development) can make this request. This
+is what the `webRequest` permission is for.
+
 ## Redaction happens before anything is written
 
 Bearer tokens, cookies, auth headers, and values that look like credentials or
@@ -51,6 +65,7 @@ src/
   sidepanel/        React UI
   adapters/         thin interface over chrome.* for testability
   introspect/       page probes, serialized into the page via Runtime.evaluate
+  bridge/           content script that lets raidr.app request a site token
 ```
 
 ## Development

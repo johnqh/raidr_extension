@@ -11,6 +11,8 @@
 import { isRaidrMessage } from '@/shared/messages';
 import { LiveChromeAdapter } from '@/adapters/ChromeAdapter';
 import { CdpSession, type CaptureSink } from './cdpSession';
+// Registers the token-bridge listeners at the top level (see tokenBridge.ts).
+import './tokenBridge';
 
 const OFFSCREEN_PATH = 'src/offscreen/index.html';
 

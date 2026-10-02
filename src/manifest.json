@@ -10,7 +10,8 @@
     "storage",
     "downloads",
     "tabs",
-    "sidePanel"
+    "sidePanel",
+    "webRequest"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -39,5 +40,19 @@
     "32": "icons/icon-32.png",
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://raidr.app/*",
+        "https://*.raidr.app/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": [
+        "src/bridge/content.ts"
+      ],
+      "run_at": "document_start"
+    }
+  ]
 }

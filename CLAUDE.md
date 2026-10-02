@@ -28,6 +28,7 @@ runtime, and exports it as an raidr bundle.
 - `@sudobility/components` + `@sudobility/design` for all panel UI
 - Tailwind driven by `createTailwindPreset()` from `@sudobility/design`
 - `@sudobility/raidr_processor` for the bundle format, redaction, and coverage
+- `@sudobility/raidr_types` for `extractCredential` and the raidr.app bridge protocol
 - `fflate` for zipping; `fake-indexeddb` for tests
 
 ## Structure
@@ -40,6 +41,11 @@ src/
     cdpSession.ts     one attached tab: domains, bodies, navigations, probes
     requestAssembler.ts  joins CDP Network events per request id; http(s) only
     sourceMaps.ts     candidate map URLs, "is this map useful"
+    tokenBridge.ts    top-level listeners wiring TokenCapture to chrome.* (imported by index.ts)
+    tokenCapture.ts   TokenCapture: sign-in popup → verified site token for raidr.app
+  bridge/           raidr.app ⇄ extension
+    content.ts        content script on raidr.app/localhost: relays window messages, answers ping
+    origins.ts        BRIDGE_MATCHES, isBridgeOrigin, BridgeForward/BridgeReply
   offscreen/        capture buffer, IndexedDB store, export
     index.ts          message handler, throttled panel broadcast, export/zip
     sessionState.ts   per-session accumulator → coverage + BundleInput
@@ -66,7 +72,7 @@ All verified on 2026-09-30.
 | `bun run dev` | vite + crxjs, HMR on 7178 (strictPort), writes `dist/` | starts |
 | `bun run build` | `tsc && vite build` → `dist/` (load unpacked) | passes |
 | `bun run typecheck` | `tsc --noEmit` over `src` and `tests` | passes |
-| `bun test` (or `bun run test:unit`) | 139 tests in 12 files, no browser needed | passes |
+| `bun test` (or `bun run test:unit`) | 148 tests in 14 files, no browser needed | passes |
 
 There is no lint or format script. There is no `test` script in
 `package.json`; `bun test` is Bun's built-in runner.
@@ -94,6 +100,42 @@ There is no lint or format script. There is no `test` script in
    checkbox) → offscreen builds `buildBundleFiles(state.bundleInput())`
    (filtered to the site's registrable domain), zips, makes a blob URL, sends
    `export/ready` → worker calls `chrome.downloads.download({ saveAs: true })`.
+
+## Site token capture (raidr.app bridge)
+
+raidr.app's API playground asks the extension for a site's token so the user
+never copies it out of DevTools. Protocol types (`BridgeRequest`,
+`BridgeResponse`, `TokenRequest`, `CapturedCredential`) come from
+`@sudobility/raidr_types`.
+
+1. **Content script** (`bridge/content.ts`, `document_start`) runs on the
+   pages in `BRIDGE_MATCHES` (`https://raidr.app/*`, `https://*.raidr.app/*`,
+   `http://localhost/*`, `http://127.0.0.1/*`). It accepts only same-window,
+   same-origin messages that pass `isBridgeRequest`, answers `ping` itself
+   with `pong` + the manifest version, and forwards `token/request` /
+   `token/cancel` to the worker as `bridge/forward`. If the forward fails, a
+   `token/request` gets `token/failed` (`error`).
+2. **Worker** (`background/tokenBridge.ts`) drops a forward unless the sender
+   is this extension and the sender tab's URL passes `isBridgeOrigin`, then
+   calls `TokenCapture.start`; it sends `token/opened` once the window is up.
+3. **`TokenCapture`** opens `loginUrl` in a 520×760 popup window in the user's
+   own profile (an existing session is picked up at once). A window that
+   cannot be opened fails with `blocked`. One sign-in per raidr tab: a new
+   request replaces the old one.
+4. `webRequest.onBeforeSendHeaders` (`requestHeaders`, `extraHeaders`, types
+   xhr/other) reads only requests from that window's tabs to the requested
+   `apiHost`, via `extractCredential`. `onCompleted` accepts the token once a
+   request carrying it to a path in `userPaths` (matched with
+   `matchesPathTemplate`) answers 2xx; with no `userPaths` any 2xx counts.
+   Then the window closes and `token/result` (`verified: true`) goes to the
+   requesting tab only.
+5. **Window closed first** → `token/failed` `closed`, so a guest token is never
+   taken. Only when `userPaths` is empty does it return the last token seen,
+   `verified: false`. Closing the raidr tab, or `token/cancel`, drops the
+   watch and closes the window without a reply.
+
+Watches live in `chrome.storage.session` (`raidr:token-watches`) so a recycled
+worker carries on.
 
 ## Hard-won constraints
 
@@ -129,6 +171,13 @@ There is no lint or format script. There is no `test` script in
 - **`SessionState.begin` must reset every accumulating field.** The offscreen
   document (and so the `SessionState`) outlives a capture; a field added to the
   class but not reset in `begin` leaks one site's data into the next bundle.
+- **`BRIDGE_MATCHES` must equal `manifest.content_scripts[0].matches`**
+  (`tests/bridge/origins.test.ts` checks). The raidr.app origins the extension
+  serves are listed only there; a new raidr_app deploy domain must be added to
+  both and to `isBridgeOrigin`, or the app sees no extension.
+- **The token bridge never answers a page outside `isBridgeOrigin`**, and
+  `TokenCapture` reads only its own popup window's requests to the one API
+  host asked for. Keep both checks when changing either file.
 - **Every message kind must be in `KINDS`** (`shared/messages.ts`) as well as in
   the `RaidrMessage` union, or `isRaidrMessage` drops it everywhere.
 
@@ -156,6 +205,9 @@ capturing a real page.
   `CdpSession`.
 - **Redaction rule**: change `raidr_processor`, not this repo; bump the
   dependency here.
+- **New raidr.app origin for the bridge**: `BRIDGE_MATCHES` and
+  `isBridgeOrigin` in `bridge/origins.ts` → `content_scripts[0].matches` in
+  `src/manifest.json`.
 - **New panel token or component**: define any new token in both `:root` and
   `.dark` in `sidepanel/index.css` and in the token test.
 
@@ -163,6 +215,11 @@ capturing a real page.
 
 - `src/manifest.json` `version` (0.0.1) is not kept in sync with
   `package.json`; the built extension reports the manifest's value.
+- The bridge messages (`bridge/forward`, `bridge/reply`) are not
+  `RaidrMessage` kinds and are not in `KINDS`; `tokenBridge.ts` and
+  `content.ts` check `kind` themselves.
+- The `webRequest` permission is used only by the token bridge. Capture still
+  goes through CDP.
 - `capture/body` and `export/manifest` are declared message kinds that nothing
   currently sends.
 - `chrome.runtime.sendMessage` broadcasts: `session/stopped` and

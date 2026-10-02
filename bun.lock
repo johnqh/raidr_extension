@@ -11,6 +11,7 @@
         "@sudobility/components": "^5.3.27",
         "@sudobility/design": "^1.1.57",
         "@sudobility/raidr_processor": "^0.1.3",
+        "@sudobility/raidr_types": "^0.1.8",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "fflate": "^0.8.2",
@@ -282,6 +283,8 @@
     "@sudobility/design": ["@sudobility/design@1.1.57", "", { "peerDependencies": { "clsx": ">=2.0.0", "tailwind-merge": ">=2.0.0" } }, "sha512-MLzusCthK4p07UsU2iaved7Zmte5YZ4ALC1TfGFSxMMtARIbuMIio8J6RI79cgFA9ucEOv5XOMYVMVlmtmDMwQ=="],
 
     "@sudobility/raidr_processor": ["@sudobility/raidr_processor@0.1.3", "", { "dependencies": { "fflate": "^0.8.2" } }, "sha512-FcoIXLLLuZ5tDyV3No4kpg8OVNZQNmyNrBpIWDzO3EKAyAubif3YSclvswDhYGfOtHAsUI7OJJTbDQeW6VNEhw=="],
+
+    "@sudobility/raidr_types": ["@sudobility/raidr_types@0.1.8", "", { "peerDependencies": { "@sudobility/types": "^1.9.68", "zod": "^4.0.0" }, "optionalPeers": ["zod"] }, "sha512-7rpVwxnWAElLX1H2iUHbPFqrVyi/fZmk1BJSntiyXH5R1vSkOghm8CB2Oaj876Sy/SSGSthf1tw0lT5AVRWR/A=="],
 
     "@sudobility/types": ["@sudobility/types@1.9.67", "", {}, "sha512-d+jk4L9i8VNvOnCJW/craqiiUTPH5aRq4KYe/QBrBU3mCcTfoYjgzzXopVQRcthiZ5dwQAEpdqCTQ0gAWRN6Ww=="],
 
